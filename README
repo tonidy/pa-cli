@@ -17,6 +17,8 @@
     - age
     - age-keygen
     - git (optional)
+    - age-plugin-se (optional, for Apple Secure Enclave support)
+    - age-plugin-yubikey (optional, for YubiKey support)
 
 
   usage
@@ -85,6 +87,16 @@
       probably the default locations:
         ~/.local/share/pa/identities
         ~/.local/share/pa/recipients
+
+    > how do i use apple secure enclave?
+
+      install age-plugin-se:
+        brew install age-plugin-se
+
+      when you first run pa, it will offer to generate
+      a secure enclave identity with touch id protection.
+
+      decryption will require touch id/face id authentication.
 
     > where are my passwords?
 

@@ -194,6 +194,10 @@ usage() {
     password length:  export PA_LENGTH=50
     password pattern: export PA_PATTERN=A-Za-z0-9-_
     disable tracking: export PA_NOGIT=
+
+  hardware support:
+    - Apple Secure Enclave (age-plugin-se) - Touch ID/Face ID protection
+    - YubiKey (age-plugin-yubikey) - Hardware security key protection
 "
     exit 0
 }
@@ -273,7 +277,39 @@ main() {
     glob "$command" '[ds]*' && [ ! -f "$name.age" ] &&
         die "password '$name' doesn't exist"
 
-    if command -v age-plugin-yubikey >/dev/null 2>&1; then
+    # Check for age-plugin-se (Apple Secure Enclave) support
+    if command -v age-plugin-se >/dev/null 2>&1; then
+        [ ! -f "$identities_file" ] && [ ! -f "$recipients_file" ] && {
+            yn "generate secure enclave identity?" && {
+                printf '%s\n' "Choose access control for Secure Enclave key:"
+                printf '%s\n' "1) any-biometry (Touch ID/Face ID)"
+                printf '%s\n' "2) any-biometry-or-passcode (Touch ID/Face ID or device passcode)"
+                printf '%s\n' "3) passcode (device passcode only)"
+                printf '%s\n' "4) current-biometry (current enrolled biometrics only)"
+                printf '%s: ' "Enter choice [1-4, default: 2]"
+
+                read -r choice
+                case ${choice:-2} in
+                    1) access_control="any-biometry" ;;
+                    2) access_control="any-biometry-or-passcode" ;;
+                    3) access_control="passcode" ;;
+                    4) access_control="current-biometry" ;;
+                    *) access_control="any-biometry-or-passcode" ;;
+                esac
+
+                age-plugin-se keygen \
+                    --access-control="$access_control" \
+                    -o "$identities_file" ||
+                    die 'failed to generate Secure Enclave identity file'
+
+                age-plugin-se recipients \
+                    -i "$identities_file" \
+                    -o "$recipients_file" ||
+                    die 'failed to generate Secure Enclave recipients file'
+            }
+        }
+    # Fallback to YubiKey if Secure Enclave is not available
+    elif command -v age-plugin-yubikey >/dev/null 2>&1; then
         [ ! -f "$identities_file" ] && [ ! -f "$recipients_file" ] && {
             yn "generate yubikey identity?" && {
                 age-plugin-yubikey \
