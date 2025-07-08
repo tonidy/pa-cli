@@ -13,10 +13,31 @@
     - pronounced "pah" - as in "papa"
 
 
+  installation
+    # Install dependencies (macOS with Homebrew)
+    brew install age fzf age-plugin-se
+
+    # Option 1: Install using Makefile (recommended)
+    sudo make install              # Install to /usr/local/bin
+    make install-user              # Install to ~/.local/bin
+
+    # Option 2: Manual installation
+    # Install pa to /usr/local/bin
+    sudo cp pa /usr/local/bin/
+    sudo chmod +x /usr/local/bin/pa
+
+    # Or install to your local bin directory
+    mkdir -p ~/.local/bin
+    cp pa ~/.local/bin/
+    chmod +x ~/.local/bin/pa
+    # Make sure ~/.local/bin is in your PATH
+
+
   dependencies
     - age
     - age-keygen
     - git (optional)
+    - fzf (optional, for fuzzy search support)
     - age-plugin-se (optional, for Apple Secure Enclave support)
     - age-plugin-yubikey (optional, for YubiKey support)
 
@@ -29,6 +50,7 @@
       [a]dd  [name] - Add a password entry.
       [d]el  [name] - Delete a password entry.
       [e]dit [name] - Edit a password entry with vi.
+      [f]ind [cmd]  - Fuzzy search passwords with fzf.
       [g]it  [cmd]  - Run git command in the password dir.
       [l]ist        - List all entries.
       [s]how [name] - Show password for an entry.
@@ -62,6 +84,18 @@
     b597c04 edit 'test'
     cba20cc add 'test'
     ef76f7e initial commit
+
+    $ pa find
+    <opens fzf to select password, then shows it>
+
+    $ pa find show
+    <opens fzf to select password, then shows it>
+
+    $ pa find edit
+    <opens fzf to select password, then edits it>
+
+    $ pa find del
+    <opens fzf to select password, then deletes it>
 
 
   faq
@@ -97,6 +131,17 @@
       a secure enclave identity with touch id protection.
 
       decryption will require touch id/face id authentication.
+
+    > how do i use fuzzy search?
+
+      install fzf:
+        brew install fzf
+
+      then use 'pa find' to search and select passwords
+      interactively. you can combine it with commands:
+        pa find show  - search and show password
+        pa find edit  - search and edit password
+        pa find del   - search and delete password
 
     > where are my passwords?
 
