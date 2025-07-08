@@ -100,6 +100,32 @@ pw_list() {
     find . -type f -name \*.age | sed 's/..//;s/\.age$//' | sort
 }
 
+pw_find() {
+    # Check if fzf is available
+    command -v fzf >/dev/null 2>&1 ||
+        die "fzf not found, install from https://github.com/junegunn/fzf"
+
+    # Get the selected password name using fzf
+    name=$(find . -type f -name '*.age' | \
+        sed 's/..//;s/\.age$//' | \
+        sort | \
+        fzf --height 40% --reverse --no-multi --prompt="Select password: ") ||
+        die "no password selected"
+
+    # If a command was provided, execute it with the selected password
+    if [ $# -gt 0 ]; then
+        case $1 in
+            s*|show) pw_show ;;
+            e*|edit) pw_edit ;;
+            d*|del) pw_del ;;
+            *) die "unsupported find command '$1'. Use: show, edit, del" ;;
+        esac
+    else
+        # Default action is to show the password
+        pw_show
+    fi
+}
+
 git_add_and_commit() {
     git add "$1" ||
         die "couldn't git add $1"
@@ -185,6 +211,7 @@ usage() {
     [a]dd  [name] - Add a password entry.
     [d]el  [name] - Delete a password entry.
     [e]dit [name] - Edit a password entry with ${EDITOR:-vi}.
+    [f]ind [cmd]  - Fuzzy search passwords with fzf (show|edit|del).
     [g]it  [cmd]  - Run git command in the password dir.
     [l]ist        - List all entries.
     [s]how [name] - Show password for an entry.
@@ -338,6 +365,7 @@ main() {
     a*) pw_add ;;
     d*) pw_del ;;
     e*) pw_edit ;;
+    f*) pw_find "$@" ;;
     l*) pw_list ;;
     s*) pw_show ;;
     *) usage ;;
