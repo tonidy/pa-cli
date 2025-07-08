@@ -4,6 +4,8 @@
 
   about
     This is a hard fork of the original pa[7] by biox[8], enhanced with:
+    - Cross-platform support (macOS, Linux, Windows)
+    - OS-native credential storage integration
     - Apple Secure Enclave support (Touch ID/Face ID authentication)
     - Fuzzy search integration with fzf
     - Improved installation and setup process
@@ -13,11 +15,13 @@
     - automatic key generation
     - automatic git tracking
     - multiple identity/recipient support
+    - cross-platform support: macOS, Linux, Windows (NEW)
+    - OS-native credential storage integration (NEW)
     - Apple Secure Enclave integration (NEW)
     - fuzzy search with fzf (NEW)
     - written in portable posix shell
     - simple to extend
-    - only ~380 lines of code (enhanced from original ~160)
+    - only ~580 lines of code (enhanced from original ~160)
     - pronounced "pah" - as in "papa"
 
 
@@ -25,8 +29,23 @@
     # Note: This is a hard fork with additional features
     # For the original pa, see: https://github.com/biox/pa
 
-    # Install dependencies (macOS with Homebrew)
+    # Install dependencies by platform:
+
+    # macOS (Homebrew)
     brew install age fzf age-plugin-se
+
+    # Linux (Ubuntu/Debian)
+    sudo apt update
+    sudo apt install age fzf libsecret-tools
+
+    # Linux (Arch)
+    sudo pacman -S age fzf libsecret
+
+    # Windows (Chocolatey)
+    choco install age fzf
+
+    # Windows (Scoop)
+    scoop install age fzf
 
     # Option 1: Install using Makefile (recommended)
     sudo make install              # Install to /usr/local/bin
@@ -45,12 +64,16 @@
 
 
   dependencies
-    - age
-    - age-keygen
-    - git (optional)
+    - age (cross-platform)
+    - age-keygen (cross-platform)
+    - git (optional, cross-platform)
     - fzf (optional, for fuzzy search support)
-    - age-plugin-se (optional, for Apple Secure Enclave support)
-    - age-plugin-yubikey (optional, for YubiKey support)
+
+    platform-specific (optional):
+    - macOS: age-plugin-se (Secure Enclave), security (Keychain)
+    - Linux: secret-tool (libsecret for credential storage)
+    - Windows: PowerShell (for Credential Manager integration)
+    - All platforms: age-plugin-yubikey (YubiKey support)
 
 
   usage
@@ -113,6 +136,8 @@
     > how does this differ from the original pa?
 
       This fork adds:
+      - Cross-platform support (macOS, Linux, Windows)
+      - OS-native credential storage integration
       - Apple Secure Enclave support for Touch ID/Face ID authentication
       - Fuzzy search with fzf for interactive password selection
       - Enhanced installation process with Makefile
@@ -161,6 +186,16 @@
         pa find show  - search and show password
         pa find edit  - search and edit password
         pa find del   - search and delete password
+
+    > how does cross-platform support work?
+
+      pa automatically detects your operating system and uses:
+      - macOS: Keychain for credential storage
+      - Linux: libsecret/secret-tool for credential storage
+      - Windows: Credential Manager via PowerShell
+
+      set PA_NO_KEYRING=1 to disable credential storage
+      and use traditional file-based keys only.
 
     > where are my passwords?
 

@@ -1,6 +1,145 @@
 #!/bin/sh
 #
 # pa - a simple password manager
+# Cross-platform support: macOS, Linux, Windows (WSL/MSYS2/Cygwin)
+
+# OS detection and credential storage functions
+detect_os() {
+    case "$(uname -s)" in
+        Darwin*) echo "macos" ;;
+        Linux*)
+            if grep -q Microsoft /proc/version 2>/dev/null; then
+                echo "wsl"
+            else
+                echo "linux"
+            fi
+            ;;
+        CYGWIN*|MINGW*|MSYS*) echo "windows" ;;
+        *) echo "unknown" ;;
+    esac
+}
+
+# Store credential in OS-specific credential store
+store_credential() {
+    local service="$1"
+    local username="$2"
+    local password="$3"
+    local os_type="$4"
+
+    case "$os_type" in
+        "windows"|"wsl")
+            # Use Windows Credential Manager via cmdkey
+            if command -v powershell.exe >/dev/null 2>&1; then
+                printf '%s' "$password" | powershell.exe -Command "
+                    \$securePassword = ConvertTo-SecureString -String (Read-Host) -AsPlainText -Force;
+                    \$credential = New-Object System.Management.Automation.PSCredential('$username', \$securePassword);
+                    [Windows.Security.Credentials.PasswordVault,Windows.Security.Credentials,ContentType=WindowsRuntime] | Out-Null;
+                    \$vault = New-Object Windows.Security.Credentials.PasswordVault;
+                    try { \$vault.Remove(\$vault.Retrieve('$service', '$username')) } catch {};
+                    \$vault.Add((New-Object Windows.Security.Credentials.PasswordCredential('$service', '$username', '$password')))
+                " 2>/dev/null
+            elif command -v cmdkey.exe >/dev/null 2>&1; then
+                printf '%s' "$password" | cmdkey.exe /generic:"$service" /user:"$username" /pass 2>/dev/null
+            else
+                return 1
+            fi
+            ;;
+        "linux")
+            # Use secret-tool (libsecret) on Linux
+            if command -v secret-tool >/dev/null 2>&1; then
+                printf '%s' "$password" | secret-tool store --label="pa: $service" service "$service" username "$username" 2>/dev/null
+            else
+                return 1
+            fi
+            ;;
+        "macos")
+            # Use macOS Keychain
+            if command -v security >/dev/null 2>&1; then
+                security delete-generic-password -s "$service" -a "$username" 2>/dev/null || true
+                printf '%s' "$password" | security add-generic-password -s "$service" -a "$username" -w 2>/dev/null
+            else
+                return 1
+            fi
+            ;;
+        *)
+            return 1
+            ;;
+    esac
+}
+
+# Retrieve credential from OS-specific credential store
+retrieve_credential() {
+    local service="$1"
+    local username="$2"
+    local os_type="$3"
+
+    case "$os_type" in
+        "windows"|"wsl")
+            if command -v powershell.exe >/dev/null 2>&1; then
+                powershell.exe -Command "
+                    [Windows.Security.Credentials.PasswordVault,Windows.Security.Credentials,ContentType=WindowsRuntime] | Out-Null;
+                    \$vault = New-Object Windows.Security.Credentials.PasswordVault;
+                    try {
+                        \$credential = \$vault.Retrieve('$service', '$username');
+                        \$credential.RetrievePassword();
+                        Write-Output \$credential.Password
+                    } catch { exit 1 }
+                " 2>/dev/null
+            else
+                return 1
+            fi
+            ;;
+        "linux")
+            if command -v secret-tool >/dev/null 2>&1; then
+                secret-tool lookup service "$service" username "$username" 2>/dev/null
+            else
+                return 1
+            fi
+            ;;
+        "macos")
+            if command -v security >/dev/null 2>&1; then
+                security find-generic-password -s "$service" -a "$username" -w 2>/dev/null
+            else
+                return 1
+            fi
+            ;;
+        *)
+            return 1
+            ;;
+    esac
+}
+
+# Decrypt file with automatic passphrase handling
+decrypt_with_key() {
+    local file="$1"
+    local os_type=$(detect_os)
+
+    # First try without passphrase (for regular keys or hardware keys)
+    if $age --decrypt -i "$identities_file" "$file" 2>/dev/null; then
+        return 0
+    fi
+
+    # If that fails and we're not using hardware keys, try with stored passphrase
+    if [ "$os_type" != "unknown" ] && [ -z "${PA_NO_KEYRING+x}" ]; then
+        key_passphrase=$(retrieve_credential "pa-encryption-key" "$USER" "$os_type" 2>/dev/null)
+        if [ "$key_passphrase" ]; then
+            printf '%s\n' "$key_passphrase" | $age --decrypt -i "$identities_file" "$file" 2>/dev/null && return 0
+        fi
+    fi
+
+    # If all else fails, prompt for passphrase
+    printf '%s: ' "Enter passphrase for encryption key"
+    stty -echo 2>/dev/null
+    read -r user_passphrase
+    stty echo 2>/dev/null
+    printf '\n'
+
+    if [ "$user_passphrase" ]; then
+        printf '%s\n' "$user_passphrase" | $age --decrypt -i "$identities_file" "$file" 2>/dev/null
+    else
+        return 1
+    fi
+}
 
 pw_add() {
     if yn "generate a password?"; then
@@ -44,14 +183,22 @@ pw_add() {
 }
 
 pw_edit() {
-    # Prefer /dev/shm because it's an in-memory
-    # space that we can use to store data without
-    # having bits laying around in sectors.
-    tmpdir=/dev/shm
-    # Fall back to /tmp - /dev/shm is Linux-only & /tmp
-    # and shared memory space on other operating systems
-    # have non-standard methods of setup/access.
-    [ -w /dev/shm ] || tmpdir=/tmp
+    # Use appropriate temporary directory for each platform
+    case "$(detect_os)" in
+        "windows"|"wsl")
+            # Use Windows temp directory or fallback
+            tmpdir="${TEMP:-${TMP:-/tmp}}"
+            ;;
+        "linux")
+            # Prefer /dev/shm (in-memory) on Linux, fallback to /tmp
+            tmpdir=/dev/shm
+            [ -w /dev/shm ] || tmpdir=/tmp
+            ;;
+        *)
+            # macOS and others use /tmp
+            tmpdir=/tmp
+            ;;
+    esac
 
     # Reimplement mktemp here, because
     # mktemp isn't defined in POSIX.
@@ -61,7 +208,7 @@ pw_edit() {
     trap 'rm -f "$tmpfile"' EXIT
 
     if [ ! -f "$name.age" ]; then new=true; else new=false && {
-        $age --decrypt -i "$identities_file" -o "$tmpfile" "./$name.age" ||
+        decrypt_with_key "./$name.age" > "$tmpfile" ||
             die "couldn't decrypt $name.age"
     }; fi
 
@@ -92,7 +239,7 @@ pw_del() {
 }
 
 pw_show() {
-    $age --decrypt -i "$identities_file" "./$name.age" ||
+    decrypt_with_key "./$name.age" ||
         die "couldn't decrypt $name.age"
 }
 
@@ -135,18 +282,41 @@ git_add_and_commit() {
 }
 
 rand_chars() {
-    # Generate random characters by reading '/dev/urandom' with the
-    # 'tr' command to translate the random bytes into a
-    # configurable character set.
-    #
-    # The 'dd' command is then used to read only the desired length.
-    #
-    # Regarding usage of '/dev/urandom' instead of '/dev/random'.
-    # See: https://www.2uo.de/myths-about-urandom
-    #
+    # Generate random characters cross-platform
     # $1 = number of chars to receive
     # $2 = filter for the chars
-    LC_ALL=C tr -dc "$2" </dev/urandom | dd ibs=1 obs=1 count="$1" 2>/dev/null
+
+    if [ -r /dev/urandom ]; then
+        # Unix-like systems (Linux, macOS, WSL)
+        LC_ALL=C tr -dc "$2" </dev/urandom | dd ibs=1 obs=1 count="$1" 2>/dev/null
+    elif command -v openssl >/dev/null 2>&1; then
+        # Fallback using OpenSSL (available on most platforms)
+        openssl rand -base64 $((($1 * 4 + 2) / 3)) | LC_ALL=C tr -dc "$2" | dd ibs=1 obs=1 count="$1" 2>/dev/null
+    elif command -v powershell.exe >/dev/null 2>&1; then
+        # Windows PowerShell fallback
+        powershell.exe -Command "
+            \$chars = '$2';
+            \$result = '';
+            for (\$i = 0; \$i -lt $1; \$i++) {
+                \$result += \$chars[(Get-Random -Maximum \$chars.Length)]
+            };
+            Write-Output \$result
+        " 2>/dev/null | tr -d '\r\n'
+    else
+        # Last resort: use date and process ID for some randomness
+        # This is not cryptographically secure but better than nothing
+        seed=$(date +%s)$$
+        i=0
+        result=""
+        while [ $i -lt "$1" ]; do
+            seed=$((seed * 1103515245 + 12345))
+            char_index=$((seed % ${#2}))
+            char=$(printf '%s' "$2" | dd ibs=1 obs=1 skip=$char_index count=1 2>/dev/null)
+            result="$result$char"
+            i=$((i + 1))
+        done
+        printf '%s' "$result"
+    fi
 }
 
 yn() {
@@ -221,10 +391,13 @@ usage() {
     password length:  export PA_LENGTH=50
     password pattern: export PA_PATTERN=A-Za-z0-9-_
     disable tracking: export PA_NOGIT=
+    disable keyring:  export PA_NO_KEYRING=1
 
-  hardware support:
-    - Apple Secure Enclave (age-plugin-se) - Touch ID/Face ID protection
-    - YubiKey (age-plugin-yubikey) - Hardware security key protection
+  platform support:
+    - macOS: Keychain integration, Secure Enclave (age-plugin-se)
+    - Linux: libsecret/secret-tool integration
+    - Windows: Credential Manager integration (WSL/MSYS2/Cygwin)
+    - Hardware: YubiKey (age-plugin-yubikey) on all platforms
 "
     exit 0
 }
@@ -352,11 +525,38 @@ main() {
         }
     fi
 
-    [ -f "$identities_file" ] ||
-        $age_keygen -o "$identities_file" 2>/dev/null
+    # Generate keys with cross-platform credential storage support
+    if [ ! -f "$identities_file" ] || [ ! -f "$recipients_file" ]; then
+        os_type=$(detect_os)
 
-    [ -f "$recipients_file" ] ||
-        $age_keygen -y -o "$recipients_file" "$identities_file" 2>/dev/null
+        # Check if we should use OS credential storage
+        if [ "$os_type" != "unknown" ] && [ -z "${PA_NO_KEYRING+x}" ]; then
+            if yn "use system credential storage for encryption keys?"; then
+                # Generate a passphrase for the age key
+                key_passphrase=$(rand_chars 32 'A-Za-z0-9')
+
+                # Generate age key with passphrase
+                printf '%s\n' "$key_passphrase" | $age_keygen -o "$identities_file" 2>/dev/null ||
+                    die "couldn't generate age identity"
+
+                # Store the passphrase in system credential store
+                if store_credential "pa-encryption-key" "$USER" "$key_passphrase" "$os_type"; then
+                    printf '%s\n' "encryption key passphrase stored in system credential store"
+                else
+                    printf '%s\n' "warning: couldn't store passphrase in credential store, using file-based storage"
+                    # Regenerate without passphrase as fallback
+                    $age_keygen -o "$identities_file" 2>/dev/null
+                fi
+            else
+                $age_keygen -o "$identities_file" 2>/dev/null
+            fi
+        else
+            $age_keygen -o "$identities_file" 2>/dev/null
+        fi
+
+        [ -f "$recipients_file" ] ||
+            $age_keygen -y -o "$recipients_file" "$identities_file" 2>/dev/null
+    fi
 
     # Ensure that we leave the terminal in a usable state on Ctrl+C.
     [ -t 0 ] && trap 'stty echo icanon; trap - INT; kill -s INT 0' INT

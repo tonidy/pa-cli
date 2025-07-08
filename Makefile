@@ -27,10 +27,11 @@ install:
 	@echo "pa installed successfully to $(BINDIR)/pa"
 	@echo ""
 	@echo "Make sure the following dependencies are installed:"
-	@echo "  - age (brew install age)"
-	@echo "  - fzf (brew install fzf) - optional, for fuzzy search"
-	@echo "  - age-plugin-se (brew install age-plugin-se) - optional, for Secure Enclave"
-	@echo "  - age-plugin-yubikey - optional, for YubiKey support"
+	@echo "  Platform-specific installation:"
+	@echo "  macOS:    brew install age fzf age-plugin-se"
+	@echo "  Linux:    apt install age fzf libsecret-tools"
+	@echo "  Windows:  choco install age fzf  (or scoop install age fzf)"
+	@echo "  Optional: age-plugin-yubikey (YubiKey support on all platforms)"
 
 uninstall:
 	@echo "Removing pa from $(BINDIR)..."
@@ -68,7 +69,9 @@ install-user:
 verify:
 	@echo "Verifying pa installation..."
 	@which pa >/dev/null 2>&1 && echo "✓ pa found in PATH" || echo "✗ pa not found in PATH"
-	@command -v age >/dev/null 2>&1 && echo "✓ age found" || echo "✗ age not found - install with: brew install age"
-	@command -v fzf >/dev/null 2>&1 && echo "✓ fzf found" || echo "✗ fzf not found - install with: brew install fzf"
-	@command -v age-plugin-se >/dev/null 2>&1 && echo "✓ age-plugin-se found" || echo "✗ age-plugin-se not found - install with: brew install age-plugin-se"
+	@command -v age >/dev/null 2>&1 && echo "✓ age found" || echo "✗ age not found - see README for platform-specific installation"
+	@command -v fzf >/dev/null 2>&1 && echo "✓ fzf found" || echo "✗ fzf not found - see README for platform-specific installation"
+	@command -v age-plugin-se >/dev/null 2>&1 && echo "✓ age-plugin-se found (macOS)" || echo "ℹ age-plugin-se not found (macOS only)"
+	@command -v secret-tool >/dev/null 2>&1 && echo "✓ secret-tool found (Linux)" || echo "ℹ secret-tool not found (Linux only)"
+	@command -v powershell.exe >/dev/null 2>&1 && echo "✓ PowerShell found (Windows)" || echo "ℹ PowerShell not found (Windows only)"
 	@command -v git >/dev/null 2>&1 && echo "✓ git found" || echo "✗ git not found"
