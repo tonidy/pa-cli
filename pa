@@ -8,6 +8,26 @@ PA_VERSION="__VERSION__"
 PA_RELEASE_DATE="__RELEASE_DATE__"
 PA_COMMIT="__COMMIT__"
 
+# Capture git information early, before directory changes
+# This is only used when running from source (placeholders not replaced)
+if [ "$PA_VERSION" = "__VERSION__" ] && command -v git >/dev/null 2>&1; then
+    # Get script directory
+    script_dir="$(cd "$(dirname "$0")" && pwd)"
+    if [ -d "$script_dir/.git" ]; then
+        # Change to script directory temporarily
+        original_cwd="$(pwd)"
+        cd "$script_dir"
+        
+        PA_DEV_TAG=$(git describe --tags 2>/dev/null || git describe --always 2>/dev/null || echo "no-tag")
+        PA_DEV_COMMIT=$(git rev-parse --short HEAD 2>/dev/null || echo "no-commit")
+        PA_DEV_STATUS=$(git status --porcelain 2>/dev/null)
+        PA_DEV_DATE=$(git log -1 --format=%cd --date=short 2>/dev/null || echo "unknown")
+        
+        # Return to original directory
+        cd "$original_cwd"
+    fi
+fi
+
 # OS detection and credential storage functions
 detect_os() {
     case "$(uname -s)" in
@@ -409,9 +429,32 @@ usage() {
 }
 
 version() {
-    printf '%s\n' "pa version: $PA_VERSION"
-    printf '%s\n' "release date: $PA_RELEASE_DATE"
-    printf '%s\n' "commit: $PA_COMMIT"
+    # Check if we're running from source (placeholders not replaced)
+    if [ "$PA_VERSION" = "__VERSION__" ]; then
+        # Running from source - use captured git values
+        if [ "$PA_DEV_TAG" ]; then
+            if [ -n "$PA_DEV_STATUS" ]; then
+                version_string="${PA_DEV_TAG}-dirty"
+                release_date_string="development"
+            else
+                version_string="$PA_DEV_TAG"
+                release_date_string="$PA_DEV_DATE"
+            fi
+            
+            printf '%s\n' "pa version: $version_string"
+            printf '%s\n' "release date: $release_date_string"
+            printf '%s\n' "commit: $PA_DEV_COMMIT"
+        else
+            printf '%s\n' "pa version: development"
+            printf '%s\n' "release date: development"
+            printf '%s\n' "commit: unknown"
+        fi
+    else
+        # Running from installed version - use embedded values
+        printf '%s\n' "pa version: $PA_VERSION"
+        printf '%s\n' "release date: $PA_RELEASE_DATE"
+        printf '%s\n' "commit: $PA_COMMIT"
+    fi
     exit 0
 }
 
