@@ -2,18 +2,29 @@
         a simple password manager
          https://passwordass.org
 
+  about
+    This is a hard fork of the original pa[7] by biox[8], enhanced with:
+    - Apple Secure Enclave support (Touch ID/Face ID authentication)
+    - Fuzzy search integration with fzf
+    - Improved installation and setup process
+
   features
     - encryption implemented using age[1]
     - automatic key generation
     - automatic git tracking
     - multiple identity/recipient support
+    - Apple Secure Enclave integration (NEW)
+    - fuzzy search with fzf (NEW)
     - written in portable posix shell
     - simple to extend
-    - only ~160 lines of code
+    - only ~380 lines of code (enhanced from original ~160)
     - pronounced "pah" - as in "papa"
 
 
   installation
+    # Note: This is a hard fork with additional features
+    # For the original pa, see: https://github.com/biox/pa
+
     # Install dependencies (macOS with Homebrew)
     brew install age fzf age-plugin-se
 
@@ -99,6 +110,14 @@
 
 
   faq
+    > how does this differ from the original pa?
+
+      This fork adds:
+      - Apple Secure Enclave support for Touch ID/Face ID authentication
+      - Fuzzy search with fzf for interactive password selection
+      - Enhanced installation process with Makefile
+      - Better documentation and setup instructions
+
     > how does this differ from pass, passage, etc?
 
       pa is smaller. simpler. cleaner. plainer.
@@ -155,8 +174,11 @@
 
 
   credits
+    - This fork is based on pa[7] by biox[8]
     - pa was originally forked from pash[4] by dylanaraps[5]
     - age[1] is a project by Filippo Valsorda[6]
+    - age-plugin-se by remko[9] enables Apple Secure Enclave support
+    - fzf[10] by junegunn provides fuzzy search functionality
 
 
   refs
@@ -166,3 +188,7 @@
     [4]: https://github.com/dylanaraps/pash
     [5]: https://github.com/dylanaraps
     [6]: https://filippo.io
+    [7]: https://github.com/biox/pa
+    [8]: https://github.com/biox
+    [9]: https://github.com/remko/age-plugin-se
+    [10]: https://github.com/junegunn/fzf
