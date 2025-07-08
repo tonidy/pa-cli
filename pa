@@ -3,6 +3,11 @@
 # pa - a simple password manager
 # Cross-platform support: macOS, Linux, Windows (WSL/MSYS2/Cygwin)
 
+# Version information (updated during installation)
+PA_VERSION="__VERSION__"
+PA_RELEASE_DATE="__RELEASE_DATE__"
+PA_COMMIT="__COMMIT__"
+
 # OS detection and credential storage functions
 detect_os() {
     case "$(uname -s)" in
@@ -385,6 +390,7 @@ usage() {
     [g]it  [cmd]  - Run git command in the password dir.
     [l]ist        - List all entries.
     [s]how [name] - Show password for an entry.
+    [v]ersion     - Show version information.
 
   env vars:
     data directory:   export PA_DIR=~/.local/share/pa
@@ -399,6 +405,13 @@ usage() {
     - Windows: Credential Manager integration (WSL/MSYS2/Cygwin)
     - Hardware: YubiKey (age-plugin-yubikey) on all platforms
 "
+    exit 0
+}
+
+version() {
+    printf '%s\n' "pa version: $PA_VERSION"
+    printf '%s\n' "release date: $PA_RELEASE_DATE"
+    printf '%s\n' "commit: $PA_COMMIT"
     exit 0
 }
 
@@ -451,6 +464,11 @@ main() {
 
     command=$1
     shift
+
+    # Handle version options
+    case $command in
+        -v|--version|v*) version ;;
+    esac
 
     glob "$command" 'g*' && {
         git "$@"
@@ -568,6 +586,7 @@ main() {
     f*) pw_find "$@" ;;
     l*) pw_list ;;
     s*) pw_show ;;
+    v*) version ;;
     *) usage ;;
     esac
 }

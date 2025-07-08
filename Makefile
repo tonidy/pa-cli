@@ -3,7 +3,21 @@
 PREFIX ?= /usr/local
 BINDIR = $(PREFIX)/bin
 
-.PHONY: install uninstall test clean install-user verify help
+RELEASE_DATE=$(shell git log -1 --format=%cd --date=short)
+GIT_TAG:=$(shell git describe --tags)
+GIT_COMMIT:=$(shell git rev-parse --short HEAD)
+GIT_STATUS:=$(shell git status --porcelain)
+
+# Development version handling
+ifneq ($(GIT_STATUS),)
+    VERSION_STRING=$(GIT_TAG)-dirty
+    RELEASE_DATE_STRING=development
+else
+    VERSION_STRING=$(GIT_TAG)
+    RELEASE_DATE_STRING=$(RELEASE_DATE)
+endif
+
+.PHONY: install uninstall test clean install-user verify help test-vars
 
 .DEFAULT_GOAL := help
 
@@ -15,6 +29,7 @@ help:
 	@echo "  install-user  - Install pa to ~/.local/bin"
 	@echo "  uninstall     - Remove pa from $(BINDIR)"
 	@echo "  test          - Run syntax and functionality tests"
+	@echo "  test-vars     - Show version variables and development status"
 	@echo "  verify        - Verify installation and dependencies"
 	@echo "  clean         - Clean up test files"
 	@echo "  help          - Show this help message"
@@ -22,7 +37,7 @@ help:
 install:
 	@echo "Installing pa to $(BINDIR)..."
 	@mkdir -p $(BINDIR)
-	@cp pa $(BINDIR)/pa
+	@sed -e 's/__VERSION__/$(VERSION_STRING)/g' -e 's/__RELEASE_DATE__/$(RELEASE_DATE_STRING)/g' -e 's/__COMMIT__/$(GIT_COMMIT)/g' pa > $(BINDIR)/pa
 	@chmod +x $(BINDIR)/pa
 	@echo "pa installed successfully to $(BINDIR)/pa"
 	@echo ""
@@ -57,7 +72,7 @@ clean:
 install-user:
 	@echo "Installing pa to ~/.local/bin..."
 	@mkdir -p ~/.local/bin
-	@cp pa ~/.local/bin/pa
+	@sed -e 's/__VERSION__/$(VERSION_STRING)/g' -e 's/__RELEASE_DATE__/$(RELEASE_DATE_STRING)/g' -e 's/__COMMIT__/$(GIT_COMMIT)/g' pa > ~/.local/bin/pa
 	@chmod +x ~/.local/bin/pa
 	@echo "pa installed successfully to ~/.local/bin/pa"
 	@echo ""
@@ -75,3 +90,11 @@ verify:
 	@command -v secret-tool >/dev/null 2>&1 && echo "✓ secret-tool found (Linux)" || echo "ℹ secret-tool not found (Linux only)"
 	@command -v powershell.exe >/dev/null 2>&1 && echo "✓ PowerShell found (Windows)" || echo "ℹ PowerShell not found (Windows only)"
 	@command -v git >/dev/null 2>&1 && echo "✓ git found" || echo "✗ git not found"
+
+test-vars:
+	@echo "RELEASE_DATE: $(RELEASE_DATE)"
+	@echo "GIT_TAG: $(GIT_TAG)"
+	@echo "GIT_COMMIT: $(GIT_COMMIT)"
+	@echo "GIT_STATUS: '$(GIT_STATUS)'"
+	@echo "VERSION_STRING: $(VERSION_STRING)"
+	@echo "RELEASE_DATE_STRING: $(RELEASE_DATE_STRING)"
