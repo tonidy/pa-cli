@@ -1,229 +1,256 @@
-                   pa
-        a simple password manager
-         https://passwordass.org
+# pa
 
-  about
-    This is a hard fork of the original pa[7] by biox[8], enhanced with:
-    - Cross-platform support (macOS, Linux, Windows)
-    - OS-native credential storage integration
-    - Apple Secure Enclave support (Touch ID/Face ID authentication)
-    - Fuzzy search integration with fzf
-    - Improved installation and setup process
+**a simple password manager**
 
-  features
-    - encryption implemented using age[1]
-    - automatic key generation
-    - automatic git tracking
-    - multiple identity/recipient support
-    - cross-platform support: macOS, Linux, Windows (NEW)
-    - OS-native credential storage integration (NEW)
-    - Apple Secure Enclave integration (NEW)
-    - fuzzy search with fzf (NEW)
-    - written in portable posix shell
-    - simple to extend
-    - only ~580 lines of code (enhanced from original ~160)
-    - pronounced "pah" - as in "papa"
+https://passwordass.org
 
+## About
 
-  installation
-    # Note: This is a hard fork with additional features
-    # For the original pa, see: https://github.com/biox/pa
+This is a hard fork of the original [pa](https://github.com/biox/pa) by [biox](https://github.com/biox), enhanced with:
 
-    # Install dependencies by platform:
+- Cross-platform support (macOS, Linux, Windows)
+- OS-native credential storage integration
+- Apple Secure Enclave support (Touch ID/Face ID authentication)
+- Fuzzy search integration with fzf
+- Improved installation and setup process
 
-    # macOS (Homebrew)
-    brew install age fzf age-plugin-se
+## Features
 
-    # Linux (Ubuntu/Debian)
-    sudo apt update
-    sudo apt install age fzf libsecret-tools
+- encryption implemented using [age](https://age-encryption.org)
+- automatic key generation
+- automatic git tracking
+- multiple identity/recipient support
+- cross-platform support: macOS, Linux, Windows (NEW)
+- OS-native credential storage integration (NEW)
+- Apple Secure Enclave integration (NEW)
+- fuzzy search with fzf (NEW)
+- written in portable posix shell
+- simple to extend
+- only ~580 lines of code (enhanced from original ~160)
+- pronounced "pah" - as in "papa"
 
-    # Linux (Arch)
-    sudo pacman -S age fzf libsecret
+## Installation
 
-    # Windows (Chocolatey)
-    choco install age fzf
+> **Note:** This is a hard fork with additional features  
+> For the original pa, see: https://github.com/biox/pa
 
-    # Windows (Scoop)
-    scoop install age fzf
+### Install dependencies by platform:
 
-    # Option 1: Install using Makefile (recommended)
-    sudo make install              # Install to /usr/local/bin
-    make install-user              # Install to ~/.local/bin
+#### macOS (Homebrew)
+```bash
+brew install age fzf age-plugin-se
+```
 
-    # Option 2: Manual installation
-    # Install pa to /usr/local/bin
-    sudo cp pa /usr/local/bin/
-    sudo chmod +x /usr/local/bin/pa
+#### Linux (Ubuntu/Debian)
+```bash
+sudo apt update
+sudo apt install age fzf libsecret-tools
+```
 
-    # Or install to your local bin directory
-    mkdir -p ~/.local/bin
-    cp pa ~/.local/bin/
-    chmod +x ~/.local/bin/pa
-    # Make sure ~/.local/bin is in your PATH
+#### Linux (Arch)
+```bash
+sudo pacman -S age fzf libsecret
+```
 
+#### Windows (Chocolatey)
+```bash
+choco install age fzf
+```
 
-  dependencies
-    - age (cross-platform)
-    - age-keygen (cross-platform)
-    - git (optional, cross-platform)
-    - fzf (optional, for fuzzy search support)
+#### Windows (Scoop)
+```bash
+scoop install age fzf
+```
 
-    platform-specific (optional):
-    - macOS: age-plugin-se (Secure Enclave), security (Keychain)
-    - Linux: secret-tool (libsecret for credential storage)
-    - Windows: PowerShell (for Credential Manager integration)
-    - All platforms: age-plugin-yubikey (YubiKey support)
+### Installation Options
 
+#### Option 1: Install using Makefile (recommended)
+```bash
+sudo make install              # Install to /usr/local/bin
+make install-user              # Install to ~/.local/bin
+```
 
-  usage
-    pa
-      a simple password manager
+#### Option 2: Manual installation
+```bash
+# Install pa to /usr/local/bin
+sudo cp pa /usr/local/bin/
+sudo chmod +x /usr/local/bin/pa
 
-    commands:
-      [a]dd  [name] - Add a password entry.
-      [d]el  [name] - Delete a password entry.
-      [e]dit [name] - Edit a password entry with vi.
-      [f]ind [cmd]  - Fuzzy search passwords with fzf.
-      [g]it  [cmd]  - Run git command in the password dir.
-      [l]ist        - List all entries.
-      [s]how [name] - Show password for an entry.
+# Or install to your local bin directory
+mkdir -p ~/.local/bin
+cp pa ~/.local/bin/
+chmod +x ~/.local/bin/pa
+# Make sure ~/.local/bin is in your PATH
+```
 
-    env vars:
-      data directory:   export PA_DIR=~/.local/share/pa/passwords
-      password length:  export PA_LENGTH=50
-      password pattern: export PA_PATTERN=A-Za-z0-9-_
-      disable tracking: export PA_NOGIT=
+## Dependencies
 
+### Required
+- age (cross-platform)
+- age-keygen (cross-platform)
+- git (optional, cross-platform)
+- fzf (optional, for fuzzy search support)
 
-  command examples
-    $ pa add test
-    generate a password? [y/N]: y
-    saved 'test' to the store.
+### Platform-specific (optional)
+- **macOS:** age-plugin-se (Secure Enclave), security (Keychain)
+- **Linux:** secret-tool (libsecret for credential storage)
+- **Windows:** PowerShell (for Credential Manager integration)
+- **All platforms:** age-plugin-yubikey (YubiKey support)
 
-    $ pa list
-    test
+## Usage
 
-    $ pa show test
-    vJwKuEBtxBVvdR-xppTdfofIei0oLlkoSK4OCSP2bMEBsP6ahM
+```
+pa
+  a simple password manager
 
-    $ pa edit test
-    <opens $EDITOR or vi>
+commands:
+  [a]dd  [name] - Add a password entry.
+  [d]el  [name] - Delete a password entry.
+  [e]dit [name] - Edit a password entry with vi.
+  [f]ind [cmd]  - Fuzzy search passwords with fzf.
+  [g]it  [cmd]  - Run git command in the password dir.
+  [l]ist        - List all entries.
+  [s]how [name] - Show password for an entry.
 
-    $ pa del test
-    delete password 'test'? [y/N]: y
+env vars:
+  data directory:   export PA_DIR=~/.local/share/pa/passwords
+  password length:  export PA_LENGTH=50
+  password pattern: export PA_PATTERN=A-Za-z0-9-_
+  disable tracking: export PA_NOGIT=
+```
 
-    $ pa git log --oneline
-    bbe85dc (HEAD -> main) delete 'test'
-    b597c04 edit 'test'
-    cba20cc add 'test'
-    ef76f7e initial commit
+## Command Examples
 
-    $ pa find
-    <opens fzf to select password, then shows it>
+```bash
+$ pa add test
+generate a password? [y/N]: y
+saved 'test' to the store.
 
-    $ pa find show
-    <opens fzf to select password, then shows it>
+$ pa list
+test
 
-    $ pa find edit
-    <opens fzf to select password, then edits it>
+$ pa show test
+vJwKuEBtxBVvdR-xppTdfofIei0oLlkoSK4OCSP2bMEBsP6ahM
 
-    $ pa find del
-    <opens fzf to select password, then deletes it>
+$ pa edit test
+<opens $EDITOR or vi>
 
+$ pa del test
+delete password 'test'? [y/N]: y
 
-  faq
-    > how does this differ from the original pa?
+$ pa git log --oneline
+bbe85dc (HEAD -> main) delete 'test'
+b597c04 edit 'test'
+cba20cc add 'test'
+ef76f7e initial commit
 
-      This fork adds:
-      - Cross-platform support (macOS, Linux, Windows)
-      - OS-native credential storage integration
-      - Apple Secure Enclave support for Touch ID/Face ID authentication
-      - Fuzzy search with fzf for interactive password selection
-      - Enhanced installation process with Makefile
-      - Better documentation and setup instructions
+$ pa find
+<opens fzf to select password, then shows it>
 
-    > how does this differ from pass, passage, etc?
+$ pa find show
+<opens fzf to select password, then shows it>
 
-      pa is smaller. simpler. cleaner. plainer.
-      harder. better. faster. stronger.
-      more than ever, hour after hour
-      work is never over
+$ pa find edit
+<opens fzf to select password, then edits it>
 
-    > is pa secure?
+$ pa find del
+<opens fzf to select password, then deletes it>
+```
 
-      if you would like to understand the
-      security characteristics of pa, please
-      read my blog post[2], and my explanation[3].
+## FAQ
 
-    > why u make this?
+### How does this differ from the original pa?
 
-      see [2].
+This fork adds:
+- Cross-platform support (macOS, Linux, Windows)
+- OS-native credential storage integration
+- Apple Secure Enclave support for Touch ID/Face ID authentication
+- Fuzzy search with fzf for interactive password selection
+- Enhanced installation process with Makefile
+- Better documentation and setup instructions
 
-    > where are my keys?
+### How does this differ from pass, passage, etc?
 
-      probably the default locations:
-        ~/.local/share/pa/identities
-        ~/.local/share/pa/recipients
+pa is smaller. simpler. cleaner. plainer.  
+harder. better. faster. stronger.  
+more than ever, hour after hour  
+work is never over
 
-    > how do i use apple secure enclave?
+### Is pa secure?
 
-      install age-plugin-se:
-        brew install age-plugin-se
+If you would like to understand the security characteristics of pa, please read my [blog post](https://j3s.sh/thought/storing-passwords-with-age.html), and my [explanation](https://github.com/biox/pa/issues/10#issuecomment-1369225383).
 
-      when you first run pa, it will offer to generate
-      a secure enclave identity with touch id protection.
+### Why u make this?
 
-      decryption will require touch id/face id authentication.
+See the [blog post](https://j3s.sh/thought/storing-passwords-with-age.html).
 
-    > how do i use fuzzy search?
+### Where are my keys?
 
-      install fzf:
-        brew install fzf
+Probably the default locations:
+- `~/.local/share/pa/identities`
+- `~/.local/share/pa/recipients`
 
-      then use 'pa find' to search and select passwords
-      interactively. you can combine it with commands:
-        pa find show  - search and show password
-        pa find edit  - search and edit password
-        pa find del   - search and delete password
+### How do I use Apple Secure Enclave?
 
-    > how does cross-platform support work?
+Install age-plugin-se:
+```bash
+brew install age-plugin-se
+```
 
-      pa automatically detects your operating system and uses:
-      - macOS: Keychain for credential storage
-      - Linux: libsecret/secret-tool for credential storage
-      - Windows: Credential Manager via PowerShell
+When you first run pa, it will offer to generate a secure enclave identity with touch id protection.
 
-      set PA_NO_KEYRING=1 to disable credential storage
-      and use traditional file-based keys only.
+Decryption will require touch id/face id authentication.
 
-    > where are my passwords?
+### How do I use fuzzy search?
 
-      probably the default location:
-        ~/.local/share/pa/passwords
+Install fzf:
+```bash
+brew install fzf
+```
 
-    > how do i rename a password?
+Then use `pa find` to search and select passwords interactively. You can combine it with commands:
+- `pa find show` - search and show password
+- `pa find edit` - search and edit password
+- `pa find del` - search and delete password
 
-      cd ~/.local/share/pa/passwords
-      mv foo.age bar.age
+### How does cross-platform support work?
 
+pa automatically detects your operating system and uses:
+- **macOS:** Keychain for credential storage
+- **Linux:** libsecret/secret-tool for credential storage
+- **Windows:** Credential Manager via PowerShell
 
-  credits
-    - This fork is based on pa[7] by biox[8]
-    - pa was originally forked from pash[4] by dylanaraps[5]
-    - age[1] is a project by Filippo Valsorda[6]
-    - age-plugin-se by remko[9] enables Apple Secure Enclave support
-    - fzf[10] by junegunn provides fuzzy search functionality
+Set `PA_NO_KEYRING=1` to disable credential storage and use traditional file-based keys only.
 
+### Where are my passwords?
 
-  refs
-    [1]: https://age-encryption.org
-    [2]: https://j3s.sh/thought/storing-passwords-with-age.html
-    [3]: https://github.com/biox/pa/issues/10#issuecomment-1369225383
-    [4]: https://github.com/dylanaraps/pash
-    [5]: https://github.com/dylanaraps
-    [6]: https://filippo.io
-    [7]: https://github.com/biox/pa
-    [8]: https://github.com/biox
-    [9]: https://github.com/remko/age-plugin-se
-    [10]: https://github.com/junegunn/fzf
+Probably the default location:
+- `~/.local/share/pa/passwords`
+
+### How do I rename a password?
+
+```bash
+cd ~/.local/share/pa/passwords
+mv foo.age bar.age
+```
+
+## Credits
+
+- This fork is based on [pa](https://github.com/biox/pa) by [biox](https://github.com/biox)
+- pa was originally forked from [pash](https://github.com/dylanaraps/pash) by [dylanaraps](https://github.com/dylanaraps)
+- [age](https://age-encryption.org) is a project by [Filippo Valsorda](https://filippo.io)
+- [age-plugin-se](https://github.com/remko/age-plugin-se) by [remko](https://github.com/remko) enables Apple Secure Enclave support
+- [fzf](https://github.com/junegunn/fzf) by [junegunn](https://github.com/junegunn) provides fuzzy search functionality
+
+## References
+
+1. [age-encryption.org](https://age-encryption.org)
+2. [Storing passwords with age](https://j3s.sh/thought/storing-passwords-with-age.html)
+3. [Security explanation](https://github.com/biox/pa/issues/10#issuecomment-1369225383)
+4. [pash](https://github.com/dylanaraps/pash)
+5. [dylanaraps](https://github.com/dylanaraps)
+6. [Filippo Valsorda](https://filippo.io)
+7. [Original pa](https://github.com/biox/pa)
+8. [biox](https://github.com/biox)
+9. [age-plugin-se](https://github.com/remko/age-plugin-se)
+10. [fzf](https://github.com/junegunn/fzf)
