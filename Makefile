@@ -37,7 +37,7 @@ help:
 install:
 	@echo "Installing pa to $(BINDIR)..."
 	@mkdir -p $(BINDIR)
-	@sed -e 's/__VERSION__/$(VERSION_STRING)/g' -e 's/__RELEASE_DATE__/$(RELEASE_DATE_STRING)/g' -e 's/__COMMIT__/$(GIT_COMMIT)/g' pa > $(BINDIR)/pa
+	@sed -e 's/PA_VERSION="__VERSION__"/PA_VERSION="$(VERSION_STRING)"/g' -e 's/PA_RELEASE_DATE="__RELEASE_DATE__"/PA_RELEASE_DATE="$(RELEASE_DATE_STRING)"/g' -e 's/PA_COMMIT="__COMMIT__"/PA_COMMIT="$(GIT_COMMIT)"/g' pa > $(BINDIR)/pa
 	@chmod +x $(BINDIR)/pa
 	@echo "pa installed successfully to $(BINDIR)/pa"
 	@echo ""
@@ -72,7 +72,7 @@ clean:
 install-user:
 	@echo "Installing pa to ~/.local/bin..."
 	@mkdir -p ~/.local/bin
-	@sed -e 's/__VERSION__/$(VERSION_STRING)/g' -e 's/__RELEASE_DATE__/$(RELEASE_DATE_STRING)/g' -e 's/__COMMIT__/$(GIT_COMMIT)/g' pa > ~/.local/bin/pa
+	@sed -e 's/PA_VERSION="__VERSION__"/PA_VERSION="$(VERSION_STRING)"/g' -e 's/PA_RELEASE_DATE="__RELEASE_DATE__"/PA_RELEASE_DATE="$(RELEASE_DATE_STRING)"/g' -e 's/PA_COMMIT="__COMMIT__"/PA_COMMIT="$(GIT_COMMIT)"/g' pa > ~/.local/bin/pa
 	@chmod +x ~/.local/bin/pa
 	@echo "pa installed successfully to ~/.local/bin/pa"
 	@echo ""
