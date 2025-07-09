@@ -37,8 +37,9 @@ help:
 install:
 	@echo "Installing pa to $(BINDIR)..."
 	@mkdir -p $(BINDIR)
-	@sed -e 's/PA_VERSION="__VERSION__"/PA_VERSION="$(VERSION_STRING)"/g' -e 's/PA_RELEASE_DATE="__RELEASE_DATE__"/PA_RELEASE_DATE="$(RELEASE_DATE_STRING)"/g' -e 's/PA_COMMIT="__COMMIT__"/PA_COMMIT="$(GIT_COMMIT)"/g' pa > $(BINDIR)/pa
-	@chmod +x $(BINDIR)/pa
+	@sed -e 's/PA_VERSION="__VERSION__"/PA_VERSION="$(VERSION_STRING)"/g' -e 's/PA_RELEASE_DATE="__RELEASE_DATE__"/PA_RELEASE_DATE="$(RELEASE_DATE_STRING)"/g' -e 's/PA_COMMIT="__COMMIT__"/PA_COMMIT="$(GIT_COMMIT)"/g' pa > pa.tmp
+	@install -m 755 pa.tmp $(BINDIR)/pa
+	@rm pa.tmp
 	@echo "pa installed successfully to $(BINDIR)/pa"
 	@echo ""
 	@echo "Make sure the following dependencies are installed:"
