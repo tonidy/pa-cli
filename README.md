@@ -8,7 +8,7 @@ This is a hard fork of the original [pa](https://github.com/biox/pa) (see https:
 
 - Cross-platform support (macOS, Linux, Windows)
 - OS-native credential storage integration
-- Apple Secure Enclave support (Touch ID/Face ID authentication) from [remko](https://github.com/remko/age-plugin-se)
+- Apple Secure Enclave support (Touch ID/Face ID authentication) using age plugin from [remko](https://github.com/remko/age-plugin-se)
 - Fuzzy search integration with fzf
 - Improved installation and setup process
 
