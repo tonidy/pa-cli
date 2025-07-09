@@ -178,9 +178,9 @@ work is never over
 
 If you would like to understand the security characteristics of pa, please read biox's [blog post](https://j3s.sh/thought/storing-passwords-with-age.html), and biox's [explanation](https://github.com/biox/pa/issues/10#issuecomment-1369225383).
 
-### Why u make this?
+### Why make this?
 
-See the [blog post](https://j3s.sh/thought/storing-passwords-with-age.html).
+See this [blog post](https://j3s.sh/thought/storing-passwords-with-age.html).
 
 ### Where are my keys?
 
@@ -198,6 +198,8 @@ brew install age-plugin-se
 When you first run pa, it will offer to generate a secure enclave identity with touch id protection.
 
 Decryption will require touch id/face id authentication.
+
+> ℹ️ The private key is bound to the secure enclave of your machine, so it cannot be transferred to another machine. This also means that you should take the necessary precautions, and make sure you also encrypt any long-term data to an alternate backup key.
 
 ### How do I use fuzzy search?
 
