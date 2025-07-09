@@ -1,12 +1,10 @@
-# pa
+# pa cli
 
 **a simple password manager**
 
-https://passwordass.org
-
 ## About
 
-This is a hard fork of the original [pa](https://github.com/biox/pa) by [biox](https://github.com/biox), enhanced with:
+This is a hard fork of the original [pa](https://github.com/biox/pa) (see https://passwordass.org) by [biox](https://github.com/biox), enhanced with:
 
 - Cross-platform support (macOS, Linux, Windows)
 - OS-native credential storage integration
