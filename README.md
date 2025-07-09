@@ -8,7 +8,7 @@ This is a hard fork of the original [pa](https://github.com/biox/pa) (see https:
 
 - Cross-platform support (macOS, Linux, Windows)
 - OS-native credential storage integration
-- Apple Secure Enclave support (Touch ID/Face ID authentication)
+- Apple Secure Enclave support (Touch ID/Face ID authentication) from [remko](https://github.com/remko/age-plugin-se)
 - Fuzzy search integration with fzf
 - Improved installation and setup process
 
@@ -22,7 +22,7 @@ This is a hard fork of the original [pa](https://github.com/biox/pa) (see https:
 - OS-native credential storage integration (NEW)
 - Apple Secure Enclave integration (NEW)
 - fuzzy search with fzf (NEW)
-- written in portable posix shell
+- written in portable POSIX shell
 - simple to extend
 - only ~580 lines of code (enhanced from original ~160)
 - pronounced "pah" - as in "papa"
@@ -195,9 +195,11 @@ Install age-plugin-se:
 brew install age-plugin-se
 ```
 
-When you first run pa, it will offer to generate a secure enclave identity with touch id protection.
+When you first run pa, it will offer to generate a secure enclave identity with Touch ID protection.
 
-Decryption will require touch id/face id authentication.
+Decryption will require Touch ID/Face ID authentication.
+
+Note from remko's documentation[9]:
 
 > ℹ️ The private key is bound to the secure enclave of your machine, so it cannot be transferred to another machine. This also means that you should take the necessary precautions, and make sure you also encrypt any long-term data to an alternate backup key.
 
