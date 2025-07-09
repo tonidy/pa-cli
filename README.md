@@ -176,7 +176,7 @@ work is never over
 
 ### Is pa secure?
 
-If you would like to understand the security characteristics of pa, please read my [blog post](https://j3s.sh/thought/storing-passwords-with-age.html), and my [explanation](https://github.com/biox/pa/issues/10#issuecomment-1369225383).
+If you would like to understand the security characteristics of pa, please read biox's [blog post](https://j3s.sh/thought/storing-passwords-with-age.html), and biox's [explanation](https://github.com/biox/pa/issues/10#issuecomment-1369225383).
 
 ### Why u make this?
 
