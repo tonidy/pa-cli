@@ -9,6 +9,7 @@ This is a hard fork of the original [pa](https://github.com/biox/pa) (see https:
 - Cross-platform support (macOS, Linux, Windows)
 - OS-native credential storage integration
 - Apple Secure Enclave support (Touch ID/Face ID authentication) using age plugin from [remko](https://github.com/remko/age-plugin-se)
+- **Secure memory cache for hardware-based decryption** (NEW)
 - Fuzzy search integration with fzf
 - Improved installation and setup process
 
@@ -21,10 +22,11 @@ This is a hard fork of the original [pa](https://github.com/biox/pa) (see https:
 - cross-platform support: macOS, Linux, Windows (NEW)
 - OS-native credential storage integration (NEW)
 - Apple Secure Enclave integration (NEW)
+- **secure memory cache for hardware decryption** (NEW)
 - fuzzy search with fzf (NEW)
 - written in portable POSIX shell
 - simple to extend
-- only ~580 lines of code (enhanced from original ~160)
+- only ~1200 lines of code (enhanced from original ~160)
 - pronounced "pah" - as in "papa"
 
 ## Installation
@@ -155,6 +157,84 @@ $ pa find del
 <opens fzf to select password, then deletes it>
 ```
 
+## Secure Memory Cache
+
+When using hardware-based authentication (Apple Secure Enclave or YubiKey), pa includes a secure memory cache to improve performance by avoiding repeated hardware authentication prompts.
+
+### How it works
+
+- **Automatic caching**: When you decrypt a password using Secure Enclave/YubiKey, the decrypted data is automatically cached in secure memory
+- **Configurable timeout**: Cache entries expire after 15 minutes by default (configurable)
+- **Memory-only storage**: Cached data is stored in secure temporary directories, never persisted to disk
+- **Automatic cleanup**: Expired entries are automatically cleaned up, and all cache data is securely wiped on exit
+- **Thread-safe**: Multiple pa processes can safely access the cache concurrently
+
+### Cache Management
+
+```bash
+# Show cache status and statistics
+$ pa cache status
+Cache Statistics:
+  Status: enabled
+  Directory: /dev/shm/pa-cache-user
+  Timeout: 900s (15m)
+  Total entries: 3
+  Valid entries: 2
+  Expired entries: 1
+  Total size: 156 bytes
+
+# Clear all cached entries
+$ pa cache clear
+clear all cached entries? [y/N]: y
+Cache cleared successfully.
+
+# Show detailed statistics
+$ pa cache stats
+<detailed cache information>
+
+# Clean up expired entries
+$ pa cache cleanup
+Expired cache entries cleaned up.
+```
+
+### Configuration
+
+Control cache behavior with environment variables:
+
+```bash
+# Disable cache entirely
+export PA_DISABLE_CACHE=1
+
+# Set custom cache timeout (in seconds)
+export PA_CACHE_TIMEOUT=1800  # 30 minutes
+
+# Cache timeout examples
+export PA_CACHE_TIMEOUT=300   # 5 minutes
+export PA_CACHE_TIMEOUT=900   # 15 minutes (default)
+export PA_CACHE_TIMEOUT=3600  # 1 hour
+```
+
+### Security Considerations
+
+- **Hardware-only**: Cache is only used when hardware authentication (Secure Enclave/YubiKey) is detected
+- **Memory protection**: Cache uses secure temporary directories (`/dev/shm` on Linux, secure temp on other platforms)
+- **Automatic expiration**: All entries automatically expire after the configured timeout
+- **Secure deletion**: Cache files are overwritten with zeros before deletion when possible
+- **Process isolation**: Each user has their own isolated cache directory with restrictive permissions (700/600)
+- **Emergency cleanup**: Cache is automatically cleaned on script termination or interruption
+
+### When cache is used
+
+The cache is automatically enabled when:
+- Using Apple Secure Enclave (`age-plugin-se`) with Touch ID/Face ID
+- Using YubiKey (`age-plugin-yubikey`) with hardware authentication
+- Cache is not explicitly disabled (`PA_DISABLE_CACHE` is not set)
+
+The cache is **not used** for:
+- Regular age keys with passphrases
+- Software-only encryption keys
+- When `PA_DISABLE_CACHE=1` is set
+
 ## FAQ
 
 ### How does this differ from the original pa?
@@ -163,6 +243,7 @@ This fork adds:
 - Cross-platform support (macOS, Linux, Windows)
 - OS-native credential storage integration
 - Apple Secure Enclave support for Touch ID/Face ID authentication
+- **Secure memory cache for hardware-based decryption** (reduces repeated Touch ID prompts)
 - Fuzzy search with fzf for interactive password selection
 - Enhanced installation process with Makefile
 - Better documentation and setup instructions

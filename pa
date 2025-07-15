@@ -134,13 +134,427 @@ retrieve_credential() {
     esac
 }
 
-# Decrypt file with automatic passphrase handling
+# ============================================================================
+# SECURE CACHE MANAGEMENT FUNCTIONS
+# ============================================================================
+
+# Initialize cache configuration and directories
+cache_init() {
+    # Cache configuration
+    PA_CACHE_TIMEOUT="${PA_CACHE_TIMEOUT:-900}"  # Default 15 minutes (900 seconds)
+    PA_CACHE_ENABLED="${PA_DISABLE_CACHE:+false}"
+    PA_CACHE_ENABLED="${PA_CACHE_ENABLED:-true}"
+
+    # Skip cache initialization if disabled
+    [ "$PA_CACHE_ENABLED" = "false" ] && return 0
+
+    # Determine secure cache directory based on OS
+    local os_type=$(detect_os)
+    case "$os_type" in
+        "linux")
+            # Prefer /dev/shm (in-memory) on Linux, fallback to /tmp
+            if [ -w /dev/shm ]; then
+                PA_CACHE_BASE_DIR="/dev/shm"
+            else
+                PA_CACHE_BASE_DIR="/tmp"
+            fi
+            ;;
+        "macos"|"windows"|"wsl"|*)
+            PA_CACHE_BASE_DIR="${TMPDIR:-/tmp}"
+            ;;
+    esac
+
+    # Create user-specific cache directory
+    PA_CACHE_DIR="$PA_CACHE_BASE_DIR/pa-cache-$USER"
+
+    # Create cache directory with secure permissions
+    if [ ! -d "$PA_CACHE_DIR" ]; then
+        mkdir -p "$PA_CACHE_DIR" 2>/dev/null || return 1
+        chmod 700 "$PA_CACHE_DIR" 2>/dev/null || return 1
+    fi
+
+    return 0
+}
+
+# Generate cache key from file path
+cache_key() {
+    local file="$1"
+    local abs_path
+
+    # Get absolute path for consistent hashing
+    abs_path=$(cd "$(dirname "$file")" && pwd)/$(basename "$file") 2>/dev/null || echo "$file"
+
+    # Generate SHA-256 hash if available, fallback to simple hash
+    if command -v sha256sum >/dev/null 2>&1; then
+        printf '%s' "$abs_path" | sha256sum | cut -d' ' -f1
+    elif command -v shasum >/dev/null 2>&1; then
+        printf '%s' "$abs_path" | shasum -a 256 | cut -d' ' -f1
+    else
+        # Simple fallback hash for systems without sha256
+        printf '%s' "$abs_path" | od -An -tx1 | tr -d ' \n' | head -c 64
+    fi
+}
+
+# Get current timestamp
+cache_timestamp() {
+    date +%s 2>/dev/null || echo "0"
+}
+
+# Check if cache entry is valid (not expired)
+cache_is_valid() {
+    local cache_file="$1"
+    local meta_file="${cache_file%.data}.meta"
+    local current_time=$(cache_timestamp)
+    local cache_time
+
+    # Check if both cache and meta files exist
+    [ -f "$cache_file" ] && [ -f "$meta_file" ] || return 1
+
+    # Read timestamp from meta file
+    cache_time=$(head -n 1 "$meta_file" 2>/dev/null) || return 1
+
+    # Validate timestamp format
+    case "$cache_time" in
+        ''|*[!0-9]*) return 1 ;;
+    esac
+
+    # Check if cache has expired
+    [ $((current_time - cache_time)) -lt "$PA_CACHE_TIMEOUT" ]
+}
+
+# Secure file locking (if flock is available)
+cache_lock() {
+    local lock_file="$1"
+    local timeout="${2:-10}"
+
+    # Create lock file if it doesn't exist
+    touch "$lock_file" 2>/dev/null || return 1
+
+    # Use flock if available, otherwise skip locking
+    if command -v flock >/dev/null 2>&1; then
+        flock -w "$timeout" "$lock_file" true
+    else
+        return 0
+    fi
+}
+
+# Release file lock
+cache_unlock() {
+    local lock_file="$1"
+
+    # Remove lock file if it exists
+    [ -f "$lock_file" ] && rm -f "$lock_file" 2>/dev/null
+    return 0
+}
+
+# Get data from cache
+cache_get() {
+    local file="$1"
+    local output_mode="${2:-stdout}"  # stdout or variable
+
+    # Skip if cache is disabled
+    [ "$PA_CACHE_ENABLED" = "false" ] && return 1
+
+    # Initialize cache if needed
+    cache_init || return 1
+
+    # Generate cache key and paths
+    local key=$(cache_key "$file")
+    local cache_file="$PA_CACHE_DIR/cache-$key.data"
+    local lock_file="$PA_CACHE_DIR/cache-$key.lock"
+
+    # Acquire lock
+    cache_lock "$lock_file" || return 1
+
+    # Check if cache is valid
+    if cache_is_valid "$cache_file"; then
+        # Cache hit - output data based on mode
+        if [ "$output_mode" = "stdout" ]; then
+            cat "$cache_file" 2>/dev/null
+        else
+            # Return data in variable (caller must use command substitution)
+            cat "$cache_file" 2>/dev/null
+        fi
+        cache_unlock "$lock_file"
+        return 0
+    fi
+
+    # Cache miss or expired
+    cache_unlock "$lock_file"
+    return 1
+}
+
+# Store data in cache
+cache_set() {
+    local file="$1"
+    local data="$2"
+
+    # Skip if cache is disabled
+    [ "$PA_CACHE_ENABLED" = "false" ] && return 1
+
+    # Initialize cache if needed
+    cache_init || return 1
+
+    # Generate cache key and paths
+    local key=$(cache_key "$file")
+    local cache_file="$PA_CACHE_DIR/cache-$key.data"
+    local meta_file="$PA_CACHE_DIR/cache-$key.meta"
+    local lock_file="$PA_CACHE_DIR/cache-$key.lock"
+
+    # Acquire lock
+    cache_lock "$lock_file" || return 1
+
+    # Create temporary files for atomic write
+    local tmp_cache_file="$PA_CACHE_DIR/tmp-$key.data.$$"
+    local tmp_meta_file="$PA_CACHE_DIR/tmp-$key.meta.$$"
+
+    # Write data to temporary file
+    if [ -n "$data" ]; then
+        printf '%s' "$data" > "$tmp_cache_file" 2>/dev/null || {
+            cache_unlock "$lock_file"
+            rm -f "$tmp_cache_file" "$tmp_meta_file" 2>/dev/null
+            return 1
+        }
+    else
+        # If data is empty, read from stdin
+        cat > "$tmp_cache_file" 2>/dev/null || {
+            cache_unlock "$lock_file"
+            rm -f "$tmp_cache_file" "$tmp_meta_file" 2>/dev/null
+            return 1
+        }
+    fi
+
+    # Write metadata (timestamp, file path)
+    {
+        cache_timestamp
+        printf '%s\n' "$file"
+    } > "$tmp_meta_file" 2>/dev/null || {
+        cache_unlock "$lock_file"
+        rm -f "$tmp_cache_file" "$tmp_meta_file" 2>/dev/null
+        return 1
+    }
+
+    # Set secure permissions
+    chmod 600 "$tmp_cache_file" "$tmp_meta_file" 2>/dev/null || {
+        cache_unlock "$lock_file"
+        rm -f "$tmp_cache_file" "$tmp_meta_file" 2>/dev/null
+        return 1
+    }
+
+    # Atomic move to final location
+    mv "$tmp_cache_file" "$cache_file" 2>/dev/null &&
+    mv "$tmp_meta_file" "$meta_file" 2>/dev/null || {
+        cache_unlock "$lock_file"
+        rm -f "$tmp_cache_file" "$tmp_meta_file" "$cache_file" "$meta_file" 2>/dev/null
+        return 1
+    }
+
+    # Release lock
+    cache_unlock "$lock_file"
+    return 0
+}
+
+# Clear specific cache entry
+cache_clear() {
+    local file="$1"
+
+    # Skip if cache is disabled
+    [ "$PA_CACHE_ENABLED" = "false" ] && return 0
+
+    # Initialize cache if needed
+    cache_init || return 0
+
+    # Generate cache key and paths
+    local key=$(cache_key "$file")
+    local cache_file="$PA_CACHE_DIR/cache-$key.data"
+    local meta_file="$PA_CACHE_DIR/cache-$key.meta"
+    local lock_file="$PA_CACHE_DIR/cache-$key.lock"
+
+    # Acquire lock
+    cache_lock "$lock_file" || return 0
+
+    # Securely remove cache files
+    if [ -f "$cache_file" ]; then
+        # Try to overwrite with zeros first (more secure)
+        if command -v dd >/dev/null 2>&1; then
+            dd if=/dev/zero of="$cache_file" bs=1k count=1 2>/dev/null || true
+        fi
+        rm -f "$cache_file" 2>/dev/null
+    fi
+
+    # Remove metadata file
+    [ -f "$meta_file" ] && rm -f "$meta_file" 2>/dev/null
+
+    # Release and remove lock
+    cache_unlock "$lock_file"
+    rm -f "$lock_file" 2>/dev/null
+
+    return 0
+}
+
+# Clear all cache entries
+cache_clear_all() {
+    # Skip if cache is disabled
+    [ "$PA_CACHE_ENABLED" = "false" ] && return 0
+
+    # Initialize cache if needed
+    cache_init || return 0
+
+    # Create global lock
+    local global_lock="$PA_CACHE_DIR/global.lock"
+    cache_lock "$global_lock" || return 0
+
+    # Securely remove all cache files
+    if [ -d "$PA_CACHE_DIR" ]; then
+        # Find and remove all cache files
+        find "$PA_CACHE_DIR" -type f -name "cache-*.data" 2>/dev/null | while read -r cache_file; do
+            # Try to overwrite with zeros first (more secure)
+            if command -v dd >/dev/null 2>&1; then
+                dd if=/dev/zero of="$cache_file" bs=1k count=1 2>/dev/null || true
+            fi
+            rm -f "$cache_file" 2>/dev/null
+        done
+
+        # Remove all metadata and lock files
+        find "$PA_CACHE_DIR" -type f -name "cache-*.meta" -o -name "cache-*.lock" 2>/dev/null | xargs rm -f 2>/dev/null || true
+    fi
+
+    # Release global lock
+    cache_unlock "$global_lock"
+    rm -f "$global_lock" 2>/dev/null
+
+    return 0
+}
+
+# Clean up expired cache entries
+cache_cleanup_expired() {
+    # Skip if cache is disabled
+    [ "$PA_CACHE_ENABLED" = "false" ] && return 0
+
+    # Initialize cache if needed
+    cache_init || return 0
+
+    # Create global lock for cleanup
+    local global_lock="$PA_CACHE_DIR/cleanup.lock"
+    cache_lock "$global_lock" 5 || return 0  # Short timeout for cleanup
+
+    local current_time=$(cache_timestamp)
+    local cleaned_count=0
+
+    # Find all cache metadata files
+    if [ -d "$PA_CACHE_DIR" ]; then
+        find "$PA_CACHE_DIR" -type f -name "cache-*.meta" 2>/dev/null | while read -r meta_file; do
+            # Extract cache key from meta file name
+            local key=$(basename "$meta_file" .meta | sed 's/^cache-//')
+            local cache_file="$PA_CACHE_DIR/cache-$key.data"
+            local lock_file="$PA_CACHE_DIR/cache-$key.lock"
+
+            # Skip if we can't acquire individual lock quickly
+            cache_lock "$lock_file" 1 || continue
+
+            # Check if entry is expired
+            if ! cache_is_valid "$cache_file"; then
+                # Remove expired entry
+                if [ -f "$cache_file" ]; then
+                    # Secure deletion
+                    if command -v dd >/dev/null 2>&1; then
+                        dd if=/dev/zero of="$cache_file" bs=1k count=1 2>/dev/null || true
+                    fi
+                    rm -f "$cache_file" 2>/dev/null
+                fi
+                [ -f "$meta_file" ] && rm -f "$meta_file" 2>/dev/null
+                cleaned_count=$((cleaned_count + 1))
+            fi
+
+            cache_unlock "$lock_file"
+            rm -f "$lock_file" 2>/dev/null
+        done
+    fi
+
+    # Release global lock
+    cache_unlock "$global_lock"
+    rm -f "$global_lock" 2>/dev/null
+
+    return 0
+}
+
+# Get cache statistics
+cache_stats() {
+    # Skip if cache is disabled
+    [ "$PA_CACHE_ENABLED" = "false" ] && {
+        printf '%s\n' "Cache: disabled"
+        return 0
+    }
+
+    # Initialize cache if needed
+    cache_init || {
+        printf '%s\n' "Cache: initialization failed"
+        return 1
+    }
+
+    local total_entries=0
+    local valid_entries=0
+    local expired_entries=0
+    local total_size=0
+
+    # Count cache entries
+    if [ -d "$PA_CACHE_DIR" ]; then
+        # Count total entries
+        total_entries=$(find "$PA_CACHE_DIR" -type f -name "cache-*.data" 2>/dev/null | wc -l)
+
+        # Analyze each entry
+        find "$PA_CACHE_DIR" -type f -name "cache-*.data" 2>/dev/null | while read -r cache_file; do
+            if cache_is_valid "$cache_file"; then
+                valid_entries=$((valid_entries + 1))
+            else
+                expired_entries=$((expired_entries + 1))
+            fi
+
+            # Calculate size if possible
+            if [ -f "$cache_file" ]; then
+                local file_size=$(wc -c < "$cache_file" 2>/dev/null || echo "0")
+                total_size=$((total_size + file_size))
+            fi
+        done
+    fi
+
+    # Display statistics
+    printf '%s\n' "Cache Statistics:"
+    printf '%s\n' "  Status: enabled"
+    printf '%s\n' "  Directory: $PA_CACHE_DIR"
+    printf '%s\n' "  Timeout: ${PA_CACHE_TIMEOUT}s ($(($PA_CACHE_TIMEOUT / 60))m)"
+    printf '%s\n' "  Total entries: $total_entries"
+    printf '%s\n' "  Valid entries: $valid_entries"
+    printf '%s\n' "  Expired entries: $expired_entries"
+    printf '%s\n' "  Total size: ${total_size} bytes"
+
+    return 0
+}
+
+# Decrypt file with automatic passphrase handling and caching
 decrypt_with_key() {
     local file="$1"
     local os_type=$(detect_os)
+    local decrypted_data
+    local cache_hit=false
 
+    # Try cache first (only for Secure Enclave or hardware keys)
+    if [ "$PA_CACHE_ENABLED" != "false" ] && cache_uses_secure_hardware; then
+        if decrypted_data=$(cache_get "$file" 2>/dev/null); then
+            printf '%s' "$decrypted_data"
+            cache_hit=true
+            return 0
+        fi
+    fi
+
+    # Cache miss or cache disabled - proceed with actual decryption
     # First try without passphrase (for regular keys or hardware keys)
-    if $age --decrypt -i "$identities_file" "$file" 2>/dev/null; then
+    if decrypted_data=$($age --decrypt -i "$identities_file" "$file" 2>/dev/null); then
+        # Store in cache if using secure hardware and cache is enabled
+        if [ "$PA_CACHE_ENABLED" != "false" ] && [ "$cache_hit" = "false" ] && cache_uses_secure_hardware; then
+            printf '%s' "$decrypted_data" | cache_set "$file" 2>/dev/null || true
+        fi
+        printf '%s' "$decrypted_data"
         return 0
     fi
 
@@ -148,7 +562,14 @@ decrypt_with_key() {
     if [ "$os_type" != "unknown" ] && [ -z "${PA_NO_KEYRING+x}" ]; then
         key_passphrase=$(retrieve_credential "pa-encryption-key" "$USER" "$os_type" 2>/dev/null)
         if [ "$key_passphrase" ]; then
-            printf '%s\n' "$key_passphrase" | $age --decrypt -i "$identities_file" "$file" 2>/dev/null && return 0
+            if decrypted_data=$(printf '%s\n' "$key_passphrase" | $age --decrypt -i "$identities_file" "$file" 2>/dev/null); then
+                # Store in cache if using secure hardware and cache is enabled
+                if [ "$PA_CACHE_ENABLED" != "false" ] && [ "$cache_hit" = "false" ] && cache_uses_secure_hardware; then
+                    printf '%s' "$decrypted_data" | cache_set "$file" 2>/dev/null || true
+                fi
+                printf '%s' "$decrypted_data"
+                return 0
+            fi
         fi
     fi
 
@@ -160,10 +581,72 @@ decrypt_with_key() {
     printf '\n'
 
     if [ "$user_passphrase" ]; then
-        printf '%s\n' "$user_passphrase" | $age --decrypt -i "$identities_file" "$file" 2>/dev/null
-    else
-        return 1
+        if decrypted_data=$(printf '%s\n' "$user_passphrase" | $age --decrypt -i "$identities_file" "$file" 2>/dev/null); then
+            # Store in cache if using secure hardware and cache is enabled
+            if [ "$PA_CACHE_ENABLED" != "false" ] && [ "$cache_hit" = "false" ] && cache_uses_secure_hardware; then
+                printf '%s' "$decrypted_data" | cache_set "$file" 2>/dev/null || true
+            fi
+            printf '%s' "$decrypted_data"
+            return 0
+        fi
     fi
+
+    return 1
+}
+
+# Check if current setup uses secure hardware (Secure Enclave or YubiKey)
+cache_uses_secure_hardware() {
+    # Check if we're using age-plugin-se (Secure Enclave)
+    if command -v age-plugin-se >/dev/null 2>&1 && [ -f "$identities_file" ]; then
+        # Check if identities file contains Secure Enclave key
+        if grep -q "age-plugin-se" "$identities_file" 2>/dev/null; then
+            return 0
+        fi
+    fi
+
+    # Check if we're using age-plugin-yubikey
+    if command -v age-plugin-yubikey >/dev/null 2>&1 && [ -f "$identities_file" ]; then
+        # Check if identities file contains YubiKey
+        if grep -q "age-plugin-yubikey" "$identities_file" 2>/dev/null; then
+            return 0
+        fi
+    fi
+
+    return 1
+}
+
+# Cache management command
+pw_cache() {
+    local subcmd="${1:-status}"
+
+    case "$subcmd" in
+        "status"|"stat")
+            cache_stats
+            ;;
+        "clear"|"clean")
+            if yn "clear all cached entries?"; then
+                cache_clear_all
+                printf '%s\n' "Cache cleared successfully."
+            else
+                printf '%s\n' "Cache clear cancelled."
+            fi
+            ;;
+        "stats"|"statistics")
+            cache_stats
+            ;;
+        "cleanup")
+            cache_cleanup_expired
+            printf '%s\n' "Expired cache entries cleaned up."
+            ;;
+        *)
+            printf '%s\n' "Usage: pa cache [status|clear|stats|cleanup]"
+            printf '%s\n' "  status  - Show cache status and basic statistics"
+            printf '%s\n' "  clear   - Clear all cached entries (requires confirmation)"
+            printf '%s\n' "  stats   - Show detailed cache statistics"
+            printf '%s\n' "  cleanup - Clean up expired cache entries"
+            return 1
+            ;;
+    esac
 }
 
 pw_add() {
@@ -413,6 +896,7 @@ usage() {
 
   commands:
     [a]dd  [name] - Add a password entry.
+    [c]ache       - Cache management (status|clear|stats).
     [d]el  [name] - Delete a password entry.
     [e]dit [name] - Edit a password entry with \$EDITOR (default: vi).
     [f]ind [cmd]  - Fuzzy search passwords with fzf (show|edit|del).
@@ -421,12 +905,19 @@ usage() {
     [s]how [name] - Show password for an entry.
     [v]ersion     - Show version information.
 
+  cache commands:
+    cache status  - Show cache status and statistics.
+    cache clear   - Clear all cached entries.
+    cache stats   - Show detailed cache statistics.
+
   env vars:
     data directory:   export PA_DIR=~/.local/share/pa
     password length:  export PA_LENGTH=50
     password pattern: export PA_PATTERN=A-Za-z0-9-_
     disable tracking: export PA_NOGIT=
     disable keyring:  export PA_NO_KEYRING=1
+    disable cache:    export PA_DISABLE_CACHE=1
+    cache timeout:    export PA_CACHE_TIMEOUT=900
     editor command:   export EDITOR=nano
 
   platform support:
@@ -468,6 +959,71 @@ version() {
     exit 0
 }
 
+# ============================================================================
+# SECURE CLEANUP AND SIGNAL HANDLING
+# ============================================================================
+
+# Secure cleanup function for cache
+cache_secure_cleanup() {
+    # Only cleanup if cache is enabled and initialized
+    [ "$PA_CACHE_ENABLED" = "false" ] && return 0
+    [ -z "$PA_CACHE_DIR" ] && return 0
+
+    # Perform periodic cleanup of expired entries
+    cache_cleanup_expired 2>/dev/null || true
+
+    # Clean up any temporary files we might have created
+    if [ -d "$PA_CACHE_DIR" ]; then
+        find "$PA_CACHE_DIR" -type f -name "tmp-*.$$" 2>/dev/null | while read -r tmp_file; do
+            # Secure deletion of temporary files
+            if command -v dd >/dev/null 2>&1; then
+                dd if=/dev/zero of="$tmp_file" bs=1k count=1 2>/dev/null || true
+            fi
+            rm -f "$tmp_file" 2>/dev/null || true
+        done
+    fi
+
+    return 0
+}
+
+# Emergency cleanup on script termination
+cache_emergency_cleanup() {
+    # Only cleanup if cache is enabled and initialized
+    [ "$PA_CACHE_ENABLED" = "false" ] && return 0
+    [ -z "$PA_CACHE_DIR" ] && return 0
+
+    # Remove any lock files we might have created
+    if [ -d "$PA_CACHE_DIR" ]; then
+        find "$PA_CACHE_DIR" -type f -name "*.lock" 2>/dev/null | while read -r lock_file; do
+            rm -f "$lock_file" 2>/dev/null || true
+        done
+
+        # Clean up any temporary files with our PID
+        find "$PA_CACHE_DIR" -type f -name "tmp-*.$$" 2>/dev/null | while read -r tmp_file; do
+            # Secure deletion
+            if command -v dd >/dev/null 2>&1; then
+                dd if=/dev/zero of="$tmp_file" bs=1k count=1 2>/dev/null || true
+            fi
+            rm -f "$tmp_file" 2>/dev/null || true
+        done
+    fi
+
+    return 0
+}
+
+# Setup signal handlers for secure cleanup
+setup_cache_cleanup_handlers() {
+    # Only setup handlers if cache is enabled
+    [ "$PA_CACHE_ENABLED" = "false" ] && return 0
+
+    # Set up trap handlers for clean exit
+    trap 'cache_emergency_cleanup; exit 0' EXIT
+    trap 'cache_emergency_cleanup; trap - INT; kill -s INT 0' INT
+    trap 'cache_emergency_cleanup; trap - TERM; kill -s TERM 0' TERM
+
+    return 0
+}
+
 main() {
     age=$(command -v age || command -v rage) ||
         die "age not found, install per https://age-encryption.org"
@@ -488,6 +1044,10 @@ main() {
 
     cd "$PA_DIR/passwords" ||
         die "couldn't change to password directory"
+
+    # Initialize secure cache system
+    cache_init 2>/dev/null || true
+    setup_cache_cleanup_handlers 2>/dev/null || true
 
     # Ensure that globbing is disabled
     # to avoid insecurities with word-splitting.
@@ -634,6 +1194,7 @@ main() {
 
     case $command in
     a*) pw_add ;;
+    c*) pw_cache "$@" ;;
     d*) pw_del ;;
     e*) pw_edit ;;
     f*) pw_find "$@" ;;
