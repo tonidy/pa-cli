@@ -917,8 +917,8 @@ usage() {
     disable tracking: export PA_NOGIT=
     disable keyring:  export PA_NO_KEYRING=1
     disable cache:    export PA_DISABLE_CACHE=1
-    cache timeout:    export PA_CACHE_TIMEOUT=900
     editor command:   export EDITOR=nano
+    cache timeout (seconds): export PA_CACHE_TIMEOUT=900
 
   platform support:
     - macOS: Keychain integration, Secure Enclave (age-plugin-se)
