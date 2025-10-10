@@ -4,11 +4,13 @@
 
 ## About
 
-This is a hard fork of the original [pa](https://github.com/biox/pa) (see https://passwordass.org) by [biox](https://github.com/biox), enhanced with:
+This is a hard fork of the original [pa](https://github.com/biox/pa) (see
+https://passwordass.org) by [biox](https://github.com/biox), enhanced with:
 
 - Cross-platform support (macOS, Linux, Windows)
 - OS-native credential storage integration
-- Apple Secure Enclave support (Touch ID/Face ID authentication) using age plugin from [remko](https://github.com/remko/age-plugin-se)
+- Apple Secure Enclave support (Touch ID/Face ID authentication) using age
+  plugin from [remko](https://github.com/remko/age-plugin-se)
 - **Secure memory cache for hardware-based decryption** (NEW)
 - Fuzzy search integration with fzf
 - Improved installation and setup process
@@ -31,33 +33,38 @@ This is a hard fork of the original [pa](https://github.com/biox/pa) (see https:
 
 ## Installation
 
-> **Note:** This is a hard fork with additional features  
+> **Note:** This is a hard fork with additional features\
 > For the original pa, see: https://github.com/biox/pa
 
 ### Install dependencies by platform:
 
 #### macOS (Homebrew)
+
 ```bash
 brew install age fzf age-plugin-se
 ```
 
 #### Linux (Ubuntu/Debian)
+
 ```bash
 sudo apt update
 sudo apt install age fzf libsecret-tools
 ```
 
 #### Linux (Arch)
+
 ```bash
 sudo pacman -S age fzf libsecret
 ```
 
 #### Windows (Chocolatey)
+
 ```bash
 choco install age fzf
 ```
 
 #### Windows (Scoop)
+
 ```bash
 scoop install age fzf
 ```
@@ -65,12 +72,14 @@ scoop install age fzf
 ### Installation Options
 
 #### Option 1: Install using Makefile (recommended)
+
 ```bash
 sudo make install              # Install to /usr/local/bin
 make install-user              # Install to ~/.local/bin
 ```
 
 #### Option 2: Manual installation
+
 ```bash
 # Install pa to /usr/local/bin
 sudo cp pa /usr/local/bin/
@@ -86,12 +95,14 @@ chmod +x ~/.local/bin/pa
 ## Dependencies
 
 ### Required
+
 - age (cross-platform)
 - age-keygen (cross-platform)
 - git (optional, cross-platform)
 - fzf (optional, for fuzzy search support)
 
 ### Platform-specific (optional)
+
 - **macOS:** age-plugin-se (Secure Enclave), security (Keychain)
 - **Linux:** secret-tool (libsecret for credential storage)
 - **Windows:** PowerShell (for Credential Manager integration)
@@ -159,15 +170,22 @@ $ pa find del
 
 ## Secure Memory Cache
 
-When using hardware-based authentication (Apple Secure Enclave or YubiKey), pa includes a secure memory cache to improve performance by avoiding repeated hardware authentication prompts.
+When using hardware-based authentication (Apple Secure Enclave or YubiKey), pa
+includes a secure memory cache to improve performance by avoiding repeated
+hardware authentication prompts.
 
 ### How it works
 
-- **Automatic caching**: When you decrypt a password using Secure Enclave/YubiKey, the decrypted data is automatically cached in secure memory
-- **Configurable timeout**: Cache entries expire after 15 minutes by default (configurable)
-- **Memory-only storage**: Cached data is stored in secure temporary directories, never persisted to disk
-- **Automatic cleanup**: Expired entries are automatically cleaned up, and all cache data is securely wiped on exit
-- **Thread-safe**: Multiple pa processes can safely access the cache concurrently
+- **Automatic caching**: When you decrypt a password using Secure
+  Enclave/YubiKey, the decrypted data is automatically cached in secure memory
+- **Configurable timeout**: Cache entries expire after 15 minutes by default
+  (configurable)
+- **Memory-only storage**: Cached data is stored in secure temporary
+  directories, never persisted to disk
+- **Automatic cleanup**: Expired entries are automatically cleaned up, and all
+  cache data is securely wiped on exit
+- **Thread-safe**: Multiple pa processes can safely access the cache
+  concurrently
 
 ### Cache Management
 
@@ -216,21 +234,29 @@ export PA_CACHE_TIMEOUT=3600  # 1 hour
 
 ### Security Considerations
 
-- **Hardware-only**: Cache is only used when hardware authentication (Secure Enclave/YubiKey) is detected
-- **Memory protection**: Cache uses secure temporary directories (`/dev/shm` on Linux, secure temp on other platforms)
-- **Automatic expiration**: All entries automatically expire after the configured timeout
-- **Secure deletion**: Cache files are overwritten with zeros before deletion when possible
-- **Process isolation**: Each user has their own isolated cache directory with restrictive permissions (700/600)
-- **Emergency cleanup**: Cache is automatically cleaned on script termination or interruption
+- **Hardware-only**: Cache is only used when hardware authentication (Secure
+  Enclave/YubiKey) is detected
+- **Memory protection**: Cache uses secure temporary directories (`/dev/shm` on
+  Linux, secure temp on other platforms)
+- **Automatic expiration**: All entries automatically expire after the
+  configured timeout
+- **Secure deletion**: Cache files are overwritten with zeros before deletion
+  when possible
+- **Process isolation**: Each user has their own isolated cache directory with
+  restrictive permissions (700/600)
+- **Emergency cleanup**: Cache is automatically cleaned on script termination or
+  interruption
 
 ### When cache is used
 
 The cache is automatically enabled when:
+
 - Using Apple Secure Enclave (`age-plugin-se`) with Touch ID/Face ID
 - Using YubiKey (`age-plugin-yubikey`) with hardware authentication
 - Cache is not explicitly disabled (`PA_DISABLE_CACHE` is not set)
 
 The cache is **not used** for:
+
 - Regular age keys with passphrases
 - Software-only encryption keys
 - When `PA_DISABLE_CACHE=1` is set
@@ -240,24 +266,29 @@ The cache is **not used** for:
 ### How does this differ from the original pa?
 
 This fork adds:
+
 - Cross-platform support (macOS, Linux, Windows)
 - OS-native credential storage integration
 - Apple Secure Enclave support for Touch ID/Face ID authentication
-- **Secure memory cache for hardware-based decryption** (reduces repeated Touch ID prompts)
+- **Secure memory cache for hardware-based decryption** (reduces repeated Touch
+  ID prompts)
 - Fuzzy search with fzf for interactive password selection
 - Enhanced installation process with Makefile
 - Better documentation and setup instructions
 
 ### How does this differ from pass, passage, etc?
 
-pa is smaller. simpler. cleaner. plainer.  
-harder. better. faster. stronger.  
-more than ever, hour after hour  
+pa is smaller. simpler. cleaner. plainer.\
+harder. better. faster. stronger.\
+more than ever, hour after hour\
 work is never over
 
 ### Is pa secure?
 
-If you would like to understand the security characteristics of pa, please read biox's [blog post](https://j3s.sh/thought/storing-passwords-with-age.html), and biox's [explanation](https://github.com/biox/pa/issues/10#issuecomment-1369225383).
+If you would like to understand the security characteristics of pa, please read
+biox's [blog post](https://j3s.sh/thought/storing-passwords-with-age.html), and
+biox's
+[explanation](https://github.com/biox/pa/issues/10#issuecomment-1369225383).
 
 ### Why make this?
 
@@ -266,32 +297,41 @@ See this [blog post](https://j3s.sh/thought/storing-passwords-with-age.html).
 ### Where are my keys?
 
 Probably the default locations:
+
 - `~/.local/share/pa/identities`
 - `~/.local/share/pa/recipients`
 
 ### How do I use Apple Secure Enclave?
 
 Install age-plugin-se:
+
 ```bash
 brew install age-plugin-se
 ```
 
-When you first run pa, it will offer to generate a secure enclave identity with Touch ID protection.
+When you first run pa, it will offer to generate a secure enclave identity with
+Touch ID protection.
 
 Decryption will require Touch ID/Face ID authentication.
 
 Note from remko's documentation[9]:
 
-> ℹ️ The private key is bound to the secure enclave of your machine, so it cannot be transferred to another machine. This also means that you should take the necessary precautions, and make sure you also encrypt any long-term data to an alternate backup key.
+> ℹ️ The private key is bound to the secure enclave of your machine, so it
+> cannot be transferred to another machine. This also means that you should take
+> the necessary precautions, and make sure you also encrypt any long-term data
+> to an alternate backup key.
 
 ### How do I use fuzzy search?
 
 Install fzf:
+
 ```bash
 brew install fzf
 ```
 
-Then use `pa find` to search and select passwords interactively. You can combine it with commands:
+Then use `pa find` to search and select passwords interactively. You can combine
+it with commands:
+
 - `pa find show` - search and show password
 - `pa find edit` - search and edit password
 - `pa find del` - search and delete password
@@ -299,15 +339,18 @@ Then use `pa find` to search and select passwords interactively. You can combine
 ### How does cross-platform support work?
 
 pa automatically detects your operating system and uses:
+
 - **macOS:** Keychain for credential storage
 - **Linux:** libsecret/secret-tool for credential storage
 - **Windows:** Credential Manager via PowerShell
 
-Set `PA_NO_KEYRING=1` to disable credential storage and use traditional file-based keys only.
+Set `PA_NO_KEYRING=1` to disable credential storage and use traditional
+file-based keys only.
 
 ### Where are my passwords?
 
 Probably the default location:
+
 - `~/.local/share/pa/passwords`
 
 ### How do I rename a password?
@@ -319,11 +362,16 @@ mv foo.age bar.age
 
 ## Credits
 
-- This fork is based on [pa](https://github.com/biox/pa) by [biox](https://github.com/biox)
-- pa was originally forked from [pash](https://github.com/dylanaraps/pash) by [dylanaraps](https://github.com/dylanaraps)
-- [age](https://age-encryption.org) is a project by [Filippo Valsorda](https://filippo.io)
-- [age-plugin-se](https://github.com/remko/age-plugin-se) by [remko](https://github.com/remko) enables Apple Secure Enclave support
-- [fzf](https://github.com/junegunn/fzf) by [junegunn](https://github.com/junegunn) provides fuzzy search functionality
+- This fork is based on [pa](https://github.com/biox/pa) by
+  [biox](https://github.com/biox)
+- pa was originally forked from [pash](https://github.com/dylanaraps/pash) by
+  [dylanaraps](https://github.com/dylanaraps)
+- [age](https://age-encryption.org) is a project by
+  [Filippo Valsorda](https://filippo.io)
+- [age-plugin-se](https://github.com/remko/age-plugin-se) by
+  [remko](https://github.com/remko) enables Apple Secure Enclave support
+- [fzf](https://github.com/junegunn/fzf) by
+  [junegunn](https://github.com/junegunn) provides fuzzy search functionality
 
 ## References
 
@@ -337,4 +385,3 @@ mv foo.age bar.age
 8. [biox](https://github.com/biox)
 9. [age-plugin-se](https://github.com/remko/age-plugin-se)
 10. [fzf](https://github.com/junegunn/fzf)
-

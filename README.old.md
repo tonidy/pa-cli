@@ -1,0 +1,111 @@
+                   pa
+        a simple password manager
+         https://passwordass.org
+
+  features
+    - encryption implemented using age[1]
+    - automatic key generation
+    - automatic git tracking
+    - multiple identity/recipient support
+    - written in portable posix shell
+    - simple to extend
+    - only ~180 lines of code
+    - pronounced "pah" - as in "papa"
+
+
+  dependencies
+    - age
+    - age-keygen
+    - git (optional)
+
+
+  usage
+    pa
+      a simple password manager
+
+    commands:
+      [a]dd  [name] - Add a password entry.
+      [d]el  [name] - Delete a password entry.
+      [e]dit [name] - Edit a password entry with vi.
+      [g]it  [cmd]  - Run git command in the password dir.
+      [l]ist [cat]  - List all entries in a category.
+      [s]how [name] - Show password for an entry.
+
+    env vars:
+      data directory:   export PA_DIR=~/.local/share/pa/passwords
+      password length:  export PA_LENGTH=50
+      password pattern: export PA_PATTERN=A-Za-z0-9-_
+      disable tracking: export PA_NOGIT=
+
+
+  command examples
+    $ pa add test
+    generate a password? [y/N]: y
+    saved 'test' to the store.
+
+    $ pa list
+    test
+
+    $ pa show test
+    vJwKuEBtxBVvdR-xppTdfofIei0oLlkoSK4OCSP2bMEBsP6ahM
+
+    $ pa edit test
+    <opens $EDITOR or vi>
+
+    $ pa del test
+    delete password 'test'? [y/N]: y
+
+    $ pa git log --oneline
+    bbe85dc (HEAD -> main) delete 'test'
+    b597c04 edit 'test'
+    cba20cc add 'test'
+    ef76f7e initial commit
+
+
+  faq
+    > how does this differ from pass, passage, etc?
+
+      pa is smaller. simpler. cleaner. plainer.
+      harder. better. faster. stronger.
+      more than ever, hour after hour
+      work is never over
+
+    > is pa secure?
+
+      if you would like to understand the
+      security characteristics of pa, please
+      read my blog post[2], and my explanation[3].
+
+    > why u make this?
+
+      see [2].
+
+    > where are my keys?
+
+      probably the default locations:
+        ~/.local/share/pa/identities
+        ~/.local/share/pa/recipients
+
+    > where are my passwords?
+
+      probably the default location:
+        ~/.local/share/pa/passwords
+
+    > how do i rename a password?
+
+      cd ~/.local/share/pa/passwords
+      mv foo.age bar.age
+
+
+  credits
+    - pa was originally forked from pash[4] by dylanaraps[5]
+    - age[1] is a project by Filippo Valsorda[6]
+
+
+  refs
+    [1]: https://age-encryption.org
+    [2]: https://j3s.sh/thought/storing-passwords-with-age.html
+    [3]: https://github.com/biox/pa/issues/10#issuecomment-1369225383
+    [4]: https://github.com/dylanaraps/pash
+    [5]: https://github.com/dylanaraps
+    [6]: https://filippo.io

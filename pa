@@ -710,7 +710,7 @@ pw_edit() {
 
     # Reimplement mktemp here, because
     # mktemp isn't defined in POSIX.
-    tmpfile=$tmpdir/pa.$(rand_chars 10 'A-Za-z0-9') ||
+    new=true tmpfile=$tmpdir/pa.$(rand_chars 10 'A-Za-z0-9') ||
         die "couldn't generate random characters"
 
     trap 'rm -f "$tmpfile"' EXIT
@@ -732,27 +732,27 @@ pw_edit() {
     $editor_cmd "$tmpfile" ||
         die "editor '$editor_cmd' exited with code $?"
 
-    [ -s "$tmpfile" ] && {
-        mkdir -p "$(dirname "./$name")" ||
-            die "couldn't create category '$(dirname "./$name" | cut -c3-)'"
+    [ -s "$tmpfile" ] || return
 
-        $age --encrypt -R "$recipients_file" -o "./$name.age" "$tmpfile" ||
-            die "couldn't encrypt $name.age"
+    mkdir -p "$(dirname "./$name")" ||
+        die "couldn't create category '$(dirname "./$name" | cut -c3-)'"
 
-        if $new; then printf '%s\n' "saved '$name' to the store."; fi
+    $age --encrypt -R "$recipients_file" -o "./$name.age" "$tmpfile" ||
+        die "couldn't encrypt $name.age"
 
-        $git_enabled && git_add_and_commit "./$name.age" "edit '$name'"
-    }
+    if $new; then printf '%s\n' "saved '$name' to the store."; fi
+
+    $git_enabled && git_add_and_commit "./$name.age" "edit '$name'"
 }
 
 pw_del() {
-    yn "delete password '$name'?" && {
-        rm -f "./$name.age"
+    yn "delete password '$name'?" || return
 
-        rmdir -p "$(dirname "./$name")" 2>/dev/null || :
+    rm -f "./$name.age"
 
-        $git_enabled && git_add_and_commit "./$name.age" "delete '$name'"
-    }
+    rmdir -p "$(dirname "./$name")" 2>/dev/null || :
+
+    $git_enabled && git_add_and_commit "./$name.age" "delete '$name'"
 }
 
 pw_show() {
@@ -761,7 +761,33 @@ pw_show() {
 }
 
 pw_list() {
-    find . -type f -name \*.age | sed 's/..//;s/\.age$//' | sort
+    find "./$name" -type f -name \*.age | sed 's/..//;s/\.age$//' | sort
+}
+
+pw_find() {
+    # Check if fzf is available
+    command -v fzf >/dev/null 2>&1 ||
+        die "fzf not found, install from https://github.com/junegunn/fzf"
+
+    # Get the selected password name using fzf
+    name=$(find . -type f -name '*.age' | \
+        sed 's/..//;s/\.age$//' | \
+        sort | \
+        fzf --height 40% --reverse --no-multi --prompt="Select password: ") ||
+        die "no password selected"
+
+    # If a command was provided, execute it with the selected password
+    if [ $# -gt 0 ]; then
+        case $1 in
+            s*|show) pw_show ;;
+            e*|edit) pw_edit ;;
+            d*|del) pw_del ;;
+            *) die "unsupported find command '$1'. Use: show, edit, del" ;;
+        esac
+    else
+        # Default action is to show the password
+        pw_show
+    fi
 }
 
 pw_find() {
@@ -901,7 +927,7 @@ usage() {
     [e]dit [name] - Edit a password entry with \$EDITOR (default: vi).
     [f]ind [cmd]  - Fuzzy search passwords with fzf (show|edit|del).
     [g]it  [cmd]  - Run git command in the password dir.
-    [l]ist        - List all entries.
+    [l]ist [cat]  - List all entries in a category.
     [s]how [name] - Show password for an entry.
     [v]ersion     - Show version information.
 
@@ -1096,8 +1122,11 @@ main() {
     glob "$command" '[ades]*' && [ -z "$name" ] &&
         die "missing [name] argument"
 
-    glob "$name" '/*' || glob "$name" '*/' &&
+    glob "$command" '[ades]*' && { glob "$name" '/*' || glob "$name" '*/'; } &&
         die "name can't start or end with '/'"
+
+    glob "$command" 'l*' && glob "$name" '/*' &&
+        die "category can't start with '/'"
 
     glob "$name" '../*' || glob "$name" '*/../*' &&
         die "category went out of bounds"
@@ -1107,6 +1136,9 @@ main() {
 
     glob "$command" '[ds]*' && [ ! -f "$name.age" ] &&
         die "password '$name' doesn't exist"
+    
+    glob "$command" 'l*' && [ "$name" ] && [ ! -d "$name" ] &&
+        die "category '$name' doesn't exist"
 
     # Check for age-plugin-se (Apple Secure Enclave) support
     if command -v age-plugin-se >/dev/null 2>&1; then
