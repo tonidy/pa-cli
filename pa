@@ -698,9 +698,14 @@ pw_edit() {
             tmpdir="${TEMP:-${TMP:-/tmp}}"
             ;;
         "linux")
-            # Prefer /dev/shm (in-memory) on Linux, fallback to /tmp
+            # Prefer /dev/shm because it's an in-memory
+            # space that we can use to store data without
+            # having bits laying around in sectors.
             tmpdir=/dev/shm
-            [ -w /dev/shm ] || tmpdir=/tmp
+            # Fall back to $TMPDIR or /tmp - /dev/shm is Linux-only
+            # and shared memory space on other operating systems
+            # have non-standard methods of setup/access.
+            [ -w /dev/shm ] || tmpdir=${TMPDIR:-/tmp}
             ;;
         *)
             # macOS and others use /tmp
