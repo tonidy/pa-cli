@@ -670,8 +670,8 @@ pw_add() {
             die "passwords don't match"
     fi
 
-    mkdir -p "$(dirname "./$name")" ||
-        die "couldn't create category '$(dirname "./$name" | cut -c3-)'"
+    mkdir -p "$(dirname -- "$name")" ||
+        die "couldn't create category '$(dirname -- "$name")'"
 
     # Use 'age' to store the password in an encrypted file.
     # A heredoc is used here instead of a 'printf' to avoid
@@ -739,8 +739,8 @@ pw_edit() {
 
     [ -s "$tmpfile" ] || return
 
-    mkdir -p "$(dirname "./$name")" ||
-        die "couldn't create category '$(dirname "./$name" | cut -c3-)'"
+    mkdir -p "$(dirname -- "$name")" ||
+        die "couldn't create category '$(dirname -- "$name")'"
 
     $age --encrypt -R "$recipients_file" -o "./$name.age" "$tmpfile" ||
         die "couldn't encrypt $name.age"
@@ -755,7 +755,7 @@ pw_del() {
 
     rm -f "./$name.age"
 
-    rmdir -p "$(dirname "./$name")" 2>/dev/null || :
+    rmdir -p "$(dirname -- "$name")" 2>/dev/null || :
 
     $git_enabled && git_add_and_commit "./$name.age" "delete '$name'"
 }
